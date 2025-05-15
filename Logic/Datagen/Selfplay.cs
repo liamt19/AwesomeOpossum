@@ -110,7 +110,7 @@ namespace AwesomeOpossum.Logic.Datagen
                     pool.BlockCallerUntilFinished();
 
                     bestMove = pool.GetBestThread().RootMoves[0].Move;
-                    bestMoveScore = pool.GetBestThread().RootMoves[0].Score;
+                    bestMoveScore = (int)pool.GetBestThread().RootMoves[0].Score;
                     bestMoveScore *= (pos.ToMove == Black ? -1 : 1);
 
 

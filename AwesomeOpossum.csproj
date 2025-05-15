@@ -169,13 +169,9 @@
   </Target>
 
 
-  <!-- Handle Horsie bindings and AOT -->
+  <!-- Handle Horsie bindings -->
   <ItemGroup>
     <EmbeddedResource Condition="'$(BINDINGS)' != '' AND Exists('$(BINDINGS)')" Include="$(BINDINGS)" />
-
-    <AssemblyAttribute Include="AwesomeOpossum.Logic.Util.IsAOTAttribute">
-      <_Parameter1>$(IS_AOT)</_Parameter1>
-    </AssemblyAttribute>
   </ItemGroup>
   
   

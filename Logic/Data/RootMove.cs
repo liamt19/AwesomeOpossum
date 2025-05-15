@@ -6,15 +6,15 @@ namespace AwesomeOpossum.Logic.Data
     {
         public Move Move;
 
-        public int Score;
-        public int PreviousScore;
-        public int AverageScore;
+        public float Score;
+        public float PreviousScore;
+        public float AverageScore;
         public int Depth;
 
         public Move[] PV;
         public int PVLength;
 
-        public RootMove(Move move, int score = -ScoreInfinite)
+        public RootMove(Move move, float score = -ScoreInfinite)
         {
             Move = move;
             Score = score;

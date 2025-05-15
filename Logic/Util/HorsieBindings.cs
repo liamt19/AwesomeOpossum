@@ -53,7 +53,7 @@ namespace AwesomeOpossum.Logic.Util
 
             if (stream == null)
             {
-                Log("Running without Horsie bindings");
+                //Log("Running without Horsie bindings");
                 return false;
             }
 

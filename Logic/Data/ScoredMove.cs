@@ -15,9 +15,9 @@
         public static readonly ScoredMove Null = new ScoredMove(ref CS0199_NullMove);
 
         public Move Move = Move.Null;
-        public int Score = ScoreNone;
+        public float Score = ScoreNone;
 
-        public ScoredMove(ref Move m, int score = 0)
+        public ScoredMove(ref Move m, float score = 0)
         {
             this.Move = m;
             this.Score = score;

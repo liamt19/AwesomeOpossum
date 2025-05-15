@@ -1,7 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.NN;
-using AwesomeOpossum.Logic.Tree;
 
 namespace AwesomeOpossum.Logic.Threads
 {
@@ -257,19 +256,10 @@ namespace AwesomeOpossum.Logic.Threads
             //  (The Position that AssocPool.SharedInfo has right now has the same FEN, but its "Owner" field might not be correct.)
             info.Position = RootPosition;
 
-            //  MultiPV searches will only consider the lesser between the number of legal moves and the requested MultiPV number.
-            int multiPV = Math.Min(SearchOptions.MultiPV, RootMoves.Count);
-
-            Span<int> searchScores = stackalloc int[MaxPly];
-            int scoreIdx = 0;
-
             RootMove lastBestRootMove = new RootMove(Move.Null);
-            int stability = 0;
 
-            //  The main thread may only go up to 64
-            //  Other threads can go until depth 256
-            int maxDepth = IsMain ? MaxDepth : MaxPly;
-            while (++RootDepth < maxDepth)
+
+            while (++RootDepth < MaxPly)
             {
                 //  The main thread is not allowed to search past info.DepthLimit
                 if (IsMain && RootDepth > info.DepthLimit)
@@ -278,88 +268,24 @@ namespace AwesomeOpossum.Logic.Threads
                 if (AssocPool.StopThreads)
                     break;
 
-                foreach (RootMove rm in RootMoves)
+                uint usedDepth = (uint)RootDepth;
+                float? scoreMaybe = Iteration.PerformOne(info.Position, 0, ref usedDepth);
+
+                StableSort(RootMoves, Tree);
+
+                if (IsMain)
                 {
-                    rm.PreviousScore = rm.Score;
+                    info.OnDepthFinish?.Invoke(ref info);
                 }
-
-
-                for (PVIndex = 0; PVIndex < multiPV; PVIndex++)
-                {
-                    if (AssocPool.StopThreads)
-                        break;
-
-                    int alpha = AlphaStart;
-                    int beta = BetaStart;
-                    int window = ScoreInfinite;
-                    int score = RootMoves[PVIndex].AverageScore;
-                    SelDepth = 0;
-
-                    if (RootDepth >= 5)
-                    {
-                        window = AspWindow;
-                        alpha = Math.Max(AlphaStart, score - window);
-                        beta = Math.Min(BetaStart, score + window);
-                    }
-
-                    while (true)
-                    {
-                        score = Search.Search.Playout(info.Position);
-
-                        StableSort(RootMoves, PVIndex);
-
-                        if (AssocPool.StopThreads)
-                            break;
-
-                        if (score <= alpha)
-                        {
-                            beta = (alpha + beta) / 2;
-                            alpha = Math.Max(alpha - window, AlphaStart);
-                        }
-                        else if (score >= beta)
-                        {
-                            beta = Math.Min(beta + window, BetaStart);
-                        }
-                        else
-                            break;
-
-                        window += window / 2;
-                    }
-
-                    StableSort(RootMoves, 0, PVIndex + 1);
-
-                    if (IsMain && (AssocPool.StopThreads || PVIndex == multiPV - 1))
-                    {
-                        info.OnDepthFinish?.Invoke(ref info);
-                    }
-                }
-
-                if (!IsMain)
-                    continue;
 
                 if (AssocPool.StopThreads)
                 {
-                    //  If we received a stop command or hit the hard time limit, our RootMoves may not have been filled in properly.
-                    //  In that case, we replace the current bestmove with the last depth's bestmove
-                    //  so that the move we send is based on an entire depth being searched instead of only a portion of it.
                     RootMoves[0] = lastBestRootMove;
 
                     for (int i = -10; i < MaxSearchStackPly; i++)
-                    {
                         NativeMemory.AlignedFree((ss + i)->PV);
-                    }
 
                     return;
-                }
-
-
-                if (lastBestRootMove.Move == RootMoves[0].Move)
-                {
-                    stability++;
-                }
-                else
-                {
-                    stability = 0;
                 }
 
                 lastBestRootMove.Move = RootMoves[0].Move;
@@ -375,22 +301,11 @@ namespace AwesomeOpossum.Logic.Threads
                     }
                 }
 
-                searchScores[scoreIdx++] = RootMoves[0].Score;
-
-                if (SoftTimeUp(tm, stability, searchScores[..scoreIdx]))
-                {
-                    break;
-                }
-
                 if (Nodes >= info.SoftNodeLimit)
-                {
                     break;
-                }
 
                 if (!AssocPool.StopThreads)
-                {
                     CompletedDepth = RootDepth;
-                }
             }
 
             if (IsMain && RootDepth >= MaxDepth && info.HasNodeLimit && !AssocPool.StopThreads)
@@ -408,17 +323,6 @@ namespace AwesomeOpossum.Logic.Threads
             }
         }
 
-        private static ReadOnlySpan<double> StabilityCoefficients => [2.2, 1.6, 1.4, 1.1, 1, 0.95, 0.9];
-        private static int StabilityMax = StabilityCoefficients.Length - 1;
-
-        private bool SoftTimeUp(TimeManager tm, int stability, Span<int> searchScores)
-        {
-            return false;
-        }
-
-        /// <summary>
-        /// Frees up the memory that was allocated to this SearchThread.
-        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (_Disposed)

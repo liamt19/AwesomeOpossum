@@ -1,4 +1,6 @@
-﻿namespace AwesomeOpossum.Logic.Threads
+﻿using AwesomeOpossum.Logic.MCTS;
+
+namespace AwesomeOpossum.Logic.Threads
 {
     /// <summary>
     /// Keeps track of a number of SearchThreads and provides methods to start and wait for them to finish.
@@ -26,6 +28,7 @@
         public SearchThread MainThread => Threads[0];
 
         public TranspositionTable TTable;
+        public Tree SharedTree;
 
         /// <summary>
         /// Set to true by the main thread when we are nearing the maximum search time / maximum node count,
@@ -44,6 +47,7 @@
         {
             Blocker = new Barrier(1);
             TTable = new TranspositionTable(Hash);
+            SharedTree = new Tree(Hash);
             Resize(threadCount);
         }
 
@@ -71,6 +75,7 @@
                 Threads[i] = new SearchThread(i);
                 Threads[i].AssocPool = this;
                 Threads[i].TT = TTable;
+                Threads[i].Tree = SharedTree;
             }
 
             MainThread.WaitForThreadFinished();
@@ -158,14 +163,12 @@
             SearchThread bestThread = MainThread;
             for (int i = 1; i < ThreadCount; i++)
             {
-                int thisScore = Threads[i].RootMoves[0].Score - bestThread.RootMoves[0].Score;
+                var thisScore = Threads[i].RootMoves[0].Score - bestThread.RootMoves[0].Score;
 
                 //  If a thread's score is higher than the previous best score,
                 //  and that thread's depth is equal to or higher than the previous, then make that the new best.
                 if (thisScore > 0 && (Threads[i].CompletedDepth >= bestThread.CompletedDepth))
-                {
                     bestThread = Threads[i];
-                }
             }
 
             return bestThread;

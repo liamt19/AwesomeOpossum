@@ -12,9 +12,6 @@ namespace AwesomeOpossum.Logic.Search
 
         public static int Playout(Position pos)
         {
-            SearchThread thisThread = pos.Owner;
-            ref Node node = ref thisThread.Tree.RootNode;
-
             return 1;
         }
 

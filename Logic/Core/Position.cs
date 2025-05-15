@@ -1,6 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.NN;
 using AwesomeOpossum.Logic.Threads;
 
@@ -93,6 +94,18 @@ namespace AwesomeOpossum.Logic.Core
 
         [MethodImpl(Inline)]
         public ulong ThreatsBy(int pc, int pt) => bb.ThreatsBy(pc, pt);
+
+        public NodeState PlayoutState()
+        {
+            var ply = (short)State->HalfmoveClock;
+            if (IsDraw(ply))
+                return NodeState.Draw;
+
+            if (HasLegalMoves())
+                return NodeState.Unterminated;
+
+            return InCheck ? NodeState.Loss : NodeState.Draw;
+        }
 
         /// <summary>
         /// Creates a new Position object and loads the provided FEN.
@@ -233,7 +246,7 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                NNUE.MakeMove(this, move);
+                //NNUE.MakeMove(this, move);
             }
 
             Hashes.Add(Hash);

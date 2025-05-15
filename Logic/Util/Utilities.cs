@@ -4,13 +4,14 @@ using System.Runtime.Intrinsics.X86;
 using System.Text;
 
 using AwesomeOpossum.Logic.Magic;
+using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum.Logic.Util
 {
     public static class Utilities
     {
-        public const string EngineBuildVersion = "11.2.15";
+        public const string EngineBuildVersion = "0.0.0";
 
         public const int NormalListCapacity = 128;
         public const int MoveListSize = 256;
@@ -511,36 +512,12 @@ namespace AwesomeOpossum.Logic.Util
             ulong nodes = thisThread.AssocPool.GetNodeCount();
             int nodesPerSec = (int)((double)nodes / (time / 1000));
 
-            int lastValidScore = 0;
-
             for (int i = 0; i < multiPV; i++)
             {
                 RootMove rm = rootMoves[i];
-                bool moveSearched = rm.Score != -ScoreInfinite;
 
-                int depth = moveSearched ? thisThread.RootDepth : Math.Max(1, thisThread.RootDepth - 1);
-                int moveScore = moveSearched ? rm.Score : rm.PreviousScore;
-
-                if (!moveSearched && i > 0)
-                {
-                    if (depth == 1)
-                    {
-                        continue;
-                    }
-
-                    if (moveScore == -ScoreInfinite)
-                    {
-                        //  Much of the time, the 4th/5th and beyond MultiPV moves aren't given a score when the search ends.
-                        //  If this is the case, either display the average score if it is lower than the last properly score move,
-                        //  or just display the previous score minus one. This isn't technically correct but it is better than showing "-31200"
-                        moveScore = Math.Min(lastValidScore - 1, rm.AverageScore);
-                    }
-                }
-
-                if (moveScore != -ScoreInfinite)
-                {
-                    lastValidScore = moveScore;
-                }
+                int depth = thisThread.RootDepth;
+                int moveScore = (int)rm.Score;
 
                 var score = FormatMoveScore(moveScore);
                 var hashfull = thisThread.TT.GetHashFull();
@@ -580,7 +557,7 @@ namespace AwesomeOpossum.Logic.Util
                 else
                 {
 
-                    Console.Write($"info depth {depth} seldepth {rm.Depth} multipv {i + 1} time {time} score {score}" +
+                    Console.Write($"info depth {depth} time {time} score {score}" +
                                   $" nodes {nodes} nps {nodesPerSec} hashfull {hashfull} pv");
                 }
 
@@ -677,26 +654,32 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
-        /// <summary>
-        /// Sorts the <paramref name="items"/> between the starting index <paramref name="offset"/> and last index <paramref name="end"/>
-        /// using <typeparamref name="T"/>'s CompareTo method. This is done in a stable manner so long as the CompareTo method returns
-        /// 0 (or negative numbers) for items with identical values.
-        /// <para></para>
-        /// This is a rather inefficient algorithm ( O(n^2)? ) but for small amounts of <paramref name="items"/> or small ranges 
-        /// of [<paramref name="offset"/>, <paramref name="end"/>] this works well enough.
-        /// </summary>
-        public static void StableSort(List<RootMove> items, int offset = 0, int end = -1)
+
+        public static void StableSort(List<RootMove> items, Tree tree)
         {
-            if (end == -1)
+            if (tree.RootNode.NumChildren != 0)
             {
-                end = items.Count;
+                var nodes = tree.ChildrenOf(tree.RootNode);
+                Debug.Assert(nodes.Length == items.Count);
+
+                for (int i = 0; i < items.Count; i++)
+                {
+                    for (int j = 0; j < nodes.Length; j++)
+                    {
+                        if (items[i].Move == nodes[j].Move)
+                        {
+                            items[i].Score = nodes[j].PolicyValue;
+                            break;
+                        }
+                    }
+                }
             }
 
-            for (int i = offset; i < end; i++)
+            for (int i = 0; i < items.Count; i++)
             {
                 int best = i;
 
-                for (int j = i + 1; j < end; j++)
+                for (int j = i + 1; j < items.Count; j++)
                 {
                     if (items[j].CompareTo(items[best]) > 0)
                     {

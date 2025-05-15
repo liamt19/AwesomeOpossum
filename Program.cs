@@ -189,11 +189,6 @@ namespace AwesomeOpossum
                     string[] splits = input.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     HandleDatagenCommand(splits);
                 }
-                else if (input.StartsWithIgnoreCase("rescore"))
-                {
-                    string[] splits = input.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                    HandleRescoreCommand(splits);
-                }
                 else if (input.StartsWithIgnoreCase("quit") || input.StartsWithIgnoreCase("exit"))
                 {
                     break;
@@ -523,25 +518,6 @@ namespace AwesomeOpossum
             ProgressBroker.StopMonitoring();
 
             Environment.Exit(0);
-        }
-
-
-        private static void HandleRescoreCommand(string[] args)
-        {
-            if (args.Length <= 1) { Log($"An input file wasn't provided!"); return; }
-
-            string dataFile = args[1];
-
-            if (!File.Exists(dataFile)) { Log($"File {dataFile} doesn't exist!"); return; }
-
-            int threads = 1;
-            if (args.Length > 2 && int.TryParse(args[2], out int selThreads)) threads = selThreads;
-
-            Log($"Will rescore {dataFile} using {threads} threads.");
-            Log($"Hit enter to begin...");
-            _ = Console.ReadLine();
-
-            Rescorer.Start(dataFile, threads);
         }
 
 

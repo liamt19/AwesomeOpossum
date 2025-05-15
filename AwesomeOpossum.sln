@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwesomeOpossum", "AwesomeOpossum.csproj", "{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Avx512|x64 = Avx512|x64
+		Datagen|x64 = Datagen|x64
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Avx512|x64.ActiveCfg = Avx512|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Avx512|x64.Build.0 = Avx512|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Datagen|x64.ActiveCfg = Datagen|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Datagen|x64.Build.0 = Datagen|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Debug|x64.ActiveCfg = Debug|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Debug|x64.Build.0 = Debug|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Release|x64.ActiveCfg = Release|x64
+		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D1493DC8-834E-4970-9577-9C37C34A932C}
+	EndGlobalSection
+EndGlobal

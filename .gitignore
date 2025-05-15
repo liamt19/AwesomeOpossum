@@ -1,0 +1,19 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/bin
+/.vs/AwesomeOpossum
+/obj
+/TB_Files
+/AwesomeOpossum.csproj.user
+/Properties/PublishProfiles/*.user
+/Properties/launchSettings.json
+/*.exe
+/*.pdb
+/*.bin
+/*.nnue
+/data
+/.vs/ProjectEvaluation
+*.dll
+*.so

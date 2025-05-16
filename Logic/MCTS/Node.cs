@@ -32,6 +32,7 @@ public struct Node
     public bool IsTerminal => State != NodeState.Unterminated;
     public bool HasChildren => (NumChildren != 0);
     public bool IsExpanded => (IsTerminal || HasChildren);
+    public bool IsValid => (this != default);
 
     public readonly float QValue
     {
@@ -79,5 +80,5 @@ public struct Node
 
     public static bool Equals(Node l, Node r) => l.PolicyValue == r.PolicyValue && l.FirstChild == r.FirstChild && l.Move == r.Move;
 
-    public override string ToString() => $"{State}, {Move}={PolicyValue} #{Visits}";
+    public override string ToString() => $"{State}, {Move}={PolicyValue} V={Visits} C={NumChildren} @ {FirstChild}";
 }

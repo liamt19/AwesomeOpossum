@@ -1,4 +1,5 @@
-﻿using AwesomeOpossum.Logic.Search;
+﻿using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Search;
 using AwesomeOpossum.Logic.Threads;
 using System;
 using System.Collections.Generic;
@@ -8,31 +9,44 @@ using System.Threading.Tasks;
 
 namespace AwesomeOpossum.Logic.MCTS;
 
+public class SearchParameters
+{
+    public int Ply = -1;
+}
+
 public static class Iteration
 {
     public static float? PerformOne(Position pos, uint nodeIdx, ref uint depth)
+    {
+        return PerformOne(pos, new SearchParameters(), nodeIdx, ref depth);
+    }
+
+    public static float? PerformOne(Position pos, SearchParameters sparams, uint nodeIdx, ref uint depth)
     {
         SearchThread thisThread = pos.Owner;
         var hash = pos.Hash;
         var tree = thisThread.Tree;
         ref var node = ref tree[nodeIdx];
+        int ply = sparams.Ply + 1;
         depth += 1;
 
+        Console.Write($"{new string('\t', ply)}{nodeIdx} {node}\t");
         float? u;
         if (node.IsTerminal || node.Visits == 0)
         {
-            Log($"{nodeIdx} Terminal");
             if (node.Visits == 0)
                 node.State = pos.PlayoutState();
 
             u = GetNodeValue(pos, nodeIdx);
+
+            Console.WriteLine($"value {u}");
         }
         else
         {
-            Log($"{nodeIdx} ok");
+            
             if (!node.IsExpanded) {
-                Log($"{nodeIdx} expanding");
                 tree.Expand(pos, nodeIdx, depth);
+                Console.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
             }
 
             var bestChild = PickAction(pos, nodeIdx, node);
@@ -40,10 +54,15 @@ public static class Iteration
             var childIdx = nodeIdx + bestChild;
             var move = tree[childIdx].Move;
 
+            Console.WriteLine();
+
             Debug.Assert(pos.IsLegal(move));
+            Debug.Assert(childIdx != 0);
 
             pos.MakeMove(move);
-            u = PerformOne(pos, childIdx, ref depth);
+            sparams.Ply += 1;
+            u = PerformOne(pos, sparams, childIdx, ref depth);
+            sparams.Ply -= 1;
             pos.UnmakeMove(move);
         }
 
@@ -72,12 +91,10 @@ public static class Iteration
         SearchThread thisThread = pos.Owner;
         ref var node = ref thisThread.Tree[nodeIdx];
 
-        float f = Random.Shared.NextSingle();
-        f = float.Clamp(f, 0.0000001f, 1.0f - 0.0000001f);
-        if (f == 0.5f)
-            f += 0.0000001f;
+        float f = (float)NNUE.GetEvaluation(pos);
+        float wdl = 1.0f / float.Exp(1.0f + (-f / Bucketed768.OUTPUT_SCALE));
 
-        return f;
+        return wdl;
     }
 
     public static uint PickAction(Position pos, uint nodeIdx, in Node node)
@@ -89,7 +106,7 @@ public static class Iteration
         var fpu = SearchUtils.GetFPU(node);
         var expl = SearchUtils.GetExplorationScale(node);
 
-        uint bestChild = tree.GetBestChild(nodeIdx, (in Node n) => {
+        uint bestChild = tree.GetBestChildFunc(nodeIdx, (in Node n) => {
             var q = n.Visits == 0 ? fpu : n.QValue;
             
             var u = expl * n.PolicyValue / (1 + n.Visits);

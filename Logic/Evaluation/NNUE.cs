@@ -24,9 +24,11 @@ namespace AwesomeOpossum.Logic.NN
         }
 
         [MethodImpl(Inline)]
-        public static short GetEvaluation(Position pos)
+        public static int GetEvaluation(Position pos)
         {
-            return Bucketed768.GetEvaluation(pos);
+            int ev = Bucketed768.GetEvaluation(pos);
+            ev = int.Clamp(ev, ScoreTTLoss + 1, ScoreTTWin - 1);
+            return ev;
         }
 
         [MethodImpl(Inline)]

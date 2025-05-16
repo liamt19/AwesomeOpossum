@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Linq;
+using System.Runtime.InteropServices;
+using System.Xml.Linq;
 using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.NN;
 
@@ -19,7 +21,7 @@ namespace AwesomeOpossum.Logic.Threads
         public int PVIndex;
 
         public int RootDepth;
-        public int SelDepth;
+        public uint SelDepth;
         public int CompletedDepth;
 
         public bool Searching;
@@ -186,7 +188,7 @@ namespace AwesomeOpossum.Logic.Threads
                 }
                 else
                 {
-                    IDSearch();
+                    Playout();
                 }
             }
         }
@@ -203,8 +205,8 @@ namespace AwesomeOpossum.Logic.Threads
         {
             TT.TTUpdate();  //  Age the TT
 
-            AssocPool.StartThreads();  //  Start other threads (if any)
-            this.IDSearch();              //  Make this thread begin searching
+            AssocPool.StartThreads();
+            this.Playout();
 
             while (!AssocPool.StopThreads && AssocPool.SharedInfo.IsInfinite) { }
 
@@ -229,97 +231,42 @@ namespace AwesomeOpossum.Logic.Threads
             }
         }
 
+
         /// <summary>
         /// Main deepening loop for threads. This is essentially the same as the old "StartSearching" method that was used.
         /// </summary>
-        public void IDSearch()
+        public void Playout()
         {
-            SearchStackEntry* _SearchStackBlock = stackalloc SearchStackEntry[MaxPly];
-            SearchStackEntry* ss = _SearchStackBlock + 10;
-            for (int i = -10; i < MaxSearchStackPly; i++)
-            {
-                (ss + i)->Clear();
-                (ss + i)->Ply = (short)i;
-                (ss + i)->PV = AlignedAllocZeroed<Move>(MaxPly);
-            }
-
             Bucketed768.ResetCaches(this);
 
-            //  Create a copy of the AssocPool's root SearchInformation instance.
             SearchInformation info = AssocPool.SharedInfo;
-
-            TimeManager tm = info.TimeManager;
-
-            HardNodeLimit = info.NodeLimit;
-
-            //  And set it's Position to this SearchThread's unique copy.
-            //  (The Position that AssocPool.SharedInfo has right now has the same FEN, but its "Owner" field might not be correct.)
             info.Position = RootPosition;
 
-            RootMove lastBestRootMove = new RootMove(Move.Null);
+            Tree.Clear();
+            Tree.PushRoot(info.Position);
 
+            ulong iter = 0;
 
-            while (++RootDepth < MaxPly)
+            while (!AssocPool.StopThreads)
             {
-                //  The main thread is not allowed to search past info.DepthLimit
-                if (IsMain && RootDepth > info.DepthLimit)
-                    break;
+                uint usedDepth = 0;
+                float? scoreMaybe = Iteration.PerformOne(RootPosition, 0, ref usedDepth);
+                Nodes += usedDepth;
+                SelDepth = Math.Max(SelDepth, usedDepth - 1);
 
-                if (AssocPool.StopThreads)
-                    break;
+                iter++;
 
-                uint usedDepth = (uint)RootDepth;
-                float? scoreMaybe = Iteration.PerformOne(info.Position, 0, ref usedDepth);
-
-                StableSort(RootMoves, Tree);
-
-                if (IsMain)
+                if (IsMain && iter % 1024 == 0)
                 {
-                    info.OnDepthFinish?.Invoke(ref info);
+                    var totalDepth = Nodes - iter;
+                    var depth = totalDepth / iter;
+                    var (pv, score) = Tree.GetPV((uint)depth);
+                    var time = Math.Max(1, Math.Round(info.TimeManager.GetSearchTime()));
+                    var nodes = Nodes;
+                    var nps = (ulong)((double)nodes / (time / 1000));
+                    Console.Write($"info depth {depth} time {time} score {score} nodes {nodes} nps {nps} ");
+                    Console.Write($"pv {string.Join(' ', pv.Select(x => Tree[x].Move))}");
                 }
-
-                if (AssocPool.StopThreads)
-                {
-                    RootMoves[0] = lastBestRootMove;
-
-                    for (int i = -10; i < MaxSearchStackPly; i++)
-                        NativeMemory.AlignedFree((ss + i)->PV);
-
-                    return;
-                }
-
-                lastBestRootMove.Move = RootMoves[0].Move;
-                lastBestRootMove.Score = RootMoves[0].Score;
-                lastBestRootMove.Depth = RootMoves[0].Depth;
-
-                for (int i = 0; i < MaxPly; i++)
-                {
-                    lastBestRootMove.PV[i] = RootMoves[0].PV[i];
-                    if (lastBestRootMove.PV[i] == Move.Null)
-                    {
-                        break;
-                    }
-                }
-
-                if (Nodes >= info.SoftNodeLimit)
-                    break;
-
-                if (!AssocPool.StopThreads)
-                    CompletedDepth = RootDepth;
-            }
-
-            if (IsMain && RootDepth >= MaxDepth && info.HasNodeLimit && !AssocPool.StopThreads)
-            {
-                //  If this was a "go nodes x" command, it is possible for the main thread to hit the
-                //  maximum depth before hitting the requested node count (causing an infinite wait).
-
-                //  If this is the case, and we haven't been told to stop searching, then we need to stop now.
-                AssocPool.StopThreads = true;
-            }
-
-            for (int i = -10; i < MaxSearchStackPly; i++)
-            {
-                NativeMemory.AlignedFree((ss + i)->PV);
             }
         }
 

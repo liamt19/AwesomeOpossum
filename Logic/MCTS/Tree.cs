@@ -25,7 +25,8 @@ public unsafe class Tree
     public Tree(int mb)
     {
         Nodes = default;
-        NodesLength = Filled = 0;
+        NodesLength = 0;
+        Filled = 0;
 
         Resize(mb);
     }
@@ -58,7 +59,7 @@ public unsafe class Tree
 
     public uint ReserveNodes(uint additional)
     {
-        var newFilled = Interlocked.Add(ref Filled, additional);
+        var newFilled = Interlocked.Add(ref Filled, additional) - additional;
         return (uint)newFilled;
     }
 
@@ -72,6 +73,28 @@ public unsafe class Tree
 
         return new Span<Node>(&Nodes[child], parentNode.NumChildren);
     }
+
+    public IEnumerable<int> ChildrenIndicesOf(uint parent) => ChildrenIndicesOf(this[parent]);
+    public IEnumerable<int> ChildrenIndicesOf(in Node parentNode)
+    {
+        var child = parentNode.FirstChild;
+        Debug.Assert(parentNode.HasChildren);
+        Debug.Assert(child != 0);
+        Debug.Assert(child < NodesLength);
+
+        return Enumerable.Range((int)parentNode.FirstChild, parentNode.NumChildren);
+    }
+
+    public void PushRoot(Position pos)
+    {
+        Debug.Assert(Filled == 0);
+
+        ReserveNodes(1);
+        this[0].Set(Move.Null, 0.0f);
+        Expand(pos, 0, 1);
+        this[0].Update(1.0f - Iteration.GetNodeValue(pos, 0));
+    }
+
 
     public void Expand(Position pos, uint nodeIndex, uint depth)
     {
@@ -112,7 +135,7 @@ public unsafe class Tree
     }
 
     public delegate float ChildSelector(in Node node);
-    public uint GetBestChild(uint nodeIndex, ChildSelector F)
+    public uint GetBestChildFunc(uint nodeIndex, ChildSelector F)
     {
         int bestIdx = int.MaxValue;
         float bestScore = float.MinValue;
@@ -132,4 +155,55 @@ public unsafe class Tree
         return (uint)bestIdx;
     }
 
+    public (uint idx, Move move, float q) GetBestAction(uint nodeIndex)
+    {
+        uint idx = GetBestChild(nodeIndex);
+        Move move = this[idx].Move;
+        float q = this[idx].QValue;
+        return (idx, move, q);
+    }
+
+    public uint GetBestChild(uint nodeIndex)
+    {
+        return GetBestChildFunc(nodeIndex, (in Node n) => {
+            if (n.Visits == 0)
+                return float.NegativeInfinity;
+
+            return n.State switch
+            {
+                NodeState.Loss => 0.0f,
+                NodeState.Draw => 0.5f,
+                NodeState.Win => 1.0f,
+                _ => n.QValue
+            };
+        });
+    }
+
+    public (List<uint> list, float score) GetPV(uint depth)
+    {
+        List<uint> list = [];
+
+        bool mate = this[0].IsTerminal;
+
+        var (idx, move, q) = GetBestAction(0);
+        float score = q;
+        if (this[idx].IsValid)
+        {
+            score = this[idx].State switch
+            {
+                NodeState.Loss => 1.1f,
+                NodeState.Draw => 0.5f,
+                NodeState.Win => -0.1f,
+                _ => q
+            };
+        }
+
+        while ((mate || depth > 0) && this[idx].IsValid)
+        {
+            (idx, move, q) = GetBestAction(idx);
+            depth--;
+        }
+
+        return (list, score);
+    }
 }

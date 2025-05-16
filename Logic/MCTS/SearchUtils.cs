@@ -25,7 +25,7 @@ namespace AwesomeOpossum.Logic.MCTS
 
         public static float GetExplorationScale(in Node node)
         {
-            return Random.Shared.NextSingle();
+            return 0.5f * float.Exp(float.Log10(Math.Max(node.Visits, 1)));
         }
 
         public static float GetPST(uint depth, float q)

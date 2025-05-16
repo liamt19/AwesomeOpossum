@@ -30,7 +30,7 @@ public static class Iteration
         int ply = sparams.Ply + 1;
         depth += 1;
 
-        Console.Write($"{new string('\t', ply)}{nodeIdx} {node}\t");
+        Debug.Write($"{new string('\t', ply)}{nodeIdx} {node}\t");
         float? u;
         if (node.IsTerminal || node.Visits == 0)
         {
@@ -39,22 +39,21 @@ public static class Iteration
 
             u = GetNodeValue(pos, nodeIdx);
 
-            Console.WriteLine($"value {u}");
+            Debug.WriteLine($"value {u}");
         }
         else
         {
             
             if (!node.IsExpanded) {
                 tree.Expand(pos, nodeIdx, depth);
-                Console.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
+                Debug.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
             }
 
-            var bestChild = PickAction(pos, nodeIdx, node);
+            var childIdx = PickAction(pos, nodeIdx, node);
 
-            var childIdx = nodeIdx + bestChild;
             var move = tree[childIdx].Move;
 
-            Console.WriteLine();
+            Debug.WriteLine("");
 
             Debug.Assert(pos.IsLegal(move));
             Debug.Assert(childIdx != 0);
@@ -105,6 +104,7 @@ public static class Iteration
         var cpuct = SearchUtils.GetCPuct(node, isRootNode);
         var fpu = SearchUtils.GetFPU(node);
         var expl = SearchUtils.GetExplorationScale(node);
+        expl *= cpuct;
 
         uint bestChild = tree.GetBestChildFunc(nodeIdx, (in Node n) => {
             var q = n.Visits == 0 ? fpu : n.QValue;

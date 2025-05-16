@@ -265,7 +265,7 @@ namespace AwesomeOpossum.Logic.Threads
                     var nodes = Nodes;
                     var nps = (ulong)((double)nodes / (time / 1000));
                     Console.Write($"info depth {depth} time {time} score {score} nodes {nodes} nps {nps} ");
-                    Console.Write($"pv {string.Join(' ', pv.Select(x => Tree[x].Move))}");
+                    Console.WriteLine($"pv {string.Join(' ', pv)}");
                 }
             }
         }

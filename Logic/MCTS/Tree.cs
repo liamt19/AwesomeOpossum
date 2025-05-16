@@ -127,6 +127,8 @@ public unsafe class Tree
             var p = moves[i].Score / total;
             var ptr = newPtr + i;
 
+            Debug.Assert(!this[ptr].IsValid);
+
             this[ptr].Set(moves[i].Move, p);
         }
 
@@ -135,16 +137,17 @@ public unsafe class Tree
     }
 
     public delegate float ChildSelector(in Node node);
+    //  Returns the index of the child, that is
     public uint GetBestChildFunc(uint nodeIndex, ChildSelector F)
     {
-        int bestIdx = int.MaxValue;
+        uint bestIdx = int.MaxValue;
         float bestScore = float.MinValue;
 
         ref var thisNode = ref this[nodeIndex];
         var children = ChildrenOf(nodeIndex);
-        for (int i = 0; i < children.Length; i++)
+        for (uint i = 0; i < children.Length; i++)
         {
-            var score = F(children[i]);
+            var score = F(children[(int)i]);
             if (score > bestScore)
             {
                 bestScore = score;
@@ -152,7 +155,7 @@ public unsafe class Tree
             }
         }
 
-        return (uint)bestIdx;
+        return thisNode.FirstChild + bestIdx;
     }
 
     public (uint idx, Move move, float q) GetBestAction(uint nodeIndex)
@@ -179,9 +182,9 @@ public unsafe class Tree
         });
     }
 
-    public (List<uint> list, float score) GetPV(uint depth)
+    public (List<Move> list, float score) GetPV(uint depth)
     {
-        List<uint> list = [];
+        List<Move> list = [];
 
         bool mate = this[0].IsTerminal;
 
@@ -197,10 +200,12 @@ public unsafe class Tree
                 _ => q
             };
         }
+        list.Add(move);
 
-        while ((mate || depth > 0) && this[idx].IsValid)
+        while ((mate || depth > 0) && this[idx].IsValid && this[idx].HasChildren)
         {
             (idx, move, q) = GetBestAction(idx);
+            list.Add(move);
             depth--;
         }
 

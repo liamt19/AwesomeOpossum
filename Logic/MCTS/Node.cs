@@ -68,8 +68,8 @@ public struct Node
     public float Update(float? q)
     {
         var nq = (ulong)((double)q * Quantization);
-        var oldV = Interlocked.Add(ref Visits, 1);
-        var oldQ = Interlocked.Add(ref SumQ, nq);
+        var oldV = Interlocked.Add(ref Visits, 1) - 1;
+        var oldQ = Interlocked.Add(ref SumQ, nq) - nq;
         //SumQSq += (q * q);
 
         return (float)((double)((q + oldQ) / (1 + oldV)) / Quantization);

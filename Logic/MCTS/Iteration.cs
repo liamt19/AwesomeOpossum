@@ -30,7 +30,7 @@ public static class Iteration
         int ply = sparams.Ply + 1;
         depth += 1;
 
-        Debug.Write($"{new string('\t', ply)}{nodeIdx} {node}\t");
+        //Debug.Write($"{new string('\t', ply)}{nodeIdx} {node}\t");
         float? u;
         if (node.IsTerminal || node.Visits == 0)
         {
@@ -39,21 +39,21 @@ public static class Iteration
 
             u = GetNodeValue(pos, nodeIdx);
 
-            Debug.WriteLine($"value {u}");
+            //Debug.WriteLine($"value {u}");
         }
         else
         {
             
             if (!node.IsExpanded) {
                 tree.Expand(pos, nodeIdx, depth);
-                Debug.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
+                //Debug.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
             }
 
             var childIdx = PickAction(pos, nodeIdx, node);
 
             var move = tree[childIdx].Move;
 
-            Debug.WriteLine("");
+            //Debug.WriteLine("");
 
             Debug.Assert(pos.IsLegal(move));
             Debug.Assert(childIdx != 0);
@@ -90,8 +90,8 @@ public static class Iteration
         SearchThread thisThread = pos.Owner;
         ref var node = ref thisThread.Tree[nodeIdx];
 
-        float f = (float)NNUE.GetEvaluation(pos);
-        float wdl = 1.0f / float.Exp(1.0f + (-f / Bucketed768.OUTPUT_SCALE));
+        float f = NNUE.GetEvaluation(pos);
+        float wdl = 1.0f / (1.0f + float.Exp(-f / 400.0f));
 
         return wdl;
     }

@@ -1,4 +1,5 @@
-﻿using AwesomeOpossum.Logic.Threads;
+﻿using AwesomeOpossum.Logic.Evaluation;
+using AwesomeOpossum.Logic.Threads;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,7 +48,10 @@ namespace AwesomeOpossum.Logic.MCTS
 
         public static int PolicyForMove(Position pos, Move move)
         {
-            return Random.Shared.Next(-256, 257);
+            pos.MakeMove(move);
+            int ev = Pesto.Evaluate(pos);
+            pos.UnmakeMove(move);
+            return -ev;
         }
     }
 }

@@ -653,6 +653,11 @@ namespace AwesomeOpossum.Logic.Util
             return s;
         }
 
+        public static float InvSigmoid(float v)
+        {
+            return 400 * float.Log10(1.0f / (1.0f - v));
+        }
+
 
 
         public static void StableSort(List<RootMove> items, Tree tree)

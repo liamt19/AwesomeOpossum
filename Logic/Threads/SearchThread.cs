@@ -260,10 +260,11 @@ namespace AwesomeOpossum.Logic.Threads
                 {
                     var totalDepth = Nodes - iter;
                     var depth = totalDepth / iter;
-                    var (pv, score) = Tree.GetPV((uint)depth);
+                    var (pv, scoreSig) = Tree.GetPV((uint)depth);
                     var time = Math.Max(1, Math.Round(info.TimeManager.GetSearchTime()));
                     var nodes = Nodes;
                     var nps = (ulong)((double)nodes / (time / 1000));
+                    var score = (int)InvSigmoid(scoreSig);
                     Console.Write($"info depth {depth} time {time} score {score} nodes {nodes} nps {nps} ");
                     Console.WriteLine($"pv {string.Join(' ', pv)}");
                 }
@@ -279,7 +280,7 @@ namespace AwesomeOpossum.Logic.Threads
 
             if (disposing)
             {
-                Assert(Searching == false, "The thread {ToString()} had its Dispose({disposing}) method called Searching was {Searching}!");
+                Assert(Searching == false, $"The thread {ToString()} had its Dispose({disposing}) method called Searching was {Searching}!");
 
                 //  Set quit to True, and pulse the condition to allow the thread in IdleLoop to exit.
                 Quit = true;

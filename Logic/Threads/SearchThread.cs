@@ -15,14 +15,15 @@ namespace AwesomeOpossum.Logic.Threads
 
         public ulong Nodes;
         public ulong HardNodeLimit;
+        public ulong PlayoutIteration;
 
         public int ThreadIdx;
 
         public int PVIndex;
 
-        public int RootDepth;
+        public uint CurrentDepth => (uint)((Nodes / PlayoutIteration) / PlayoutIteration);
+        public uint AverageDepth;
         public uint SelDepth;
-        public int CompletedDepth;
 
         public bool Searching;
         public bool Quit;
@@ -245,30 +246,38 @@ namespace AwesomeOpossum.Logic.Threads
             Tree.Clear();
             Tree.PushRoot(info.Position);
 
-            ulong iter = 0;
+            PlayoutIteration = 0;
 
             while (!AssocPool.StopThreads)
             {
                 uint usedDepth = 0;
                 float? scoreMaybe = Iteration.PerformOne(RootPosition, 0, ref usedDepth);
+                
+                if (scoreMaybe is null) //  Tree is full
+                    AssocPool.StopThreads = true;
+
                 Nodes += usedDepth;
                 SelDepth = Math.Max(SelDepth, usedDepth - 1);
 
-                iter++;
+                PlayoutIteration++;
 
-                if (IsMain && iter % 1024 == 0)
+                AverageDepth = Math.Max(AverageDepth, CurrentDepth);
+                if (CurrentDepth > info.DepthLimit)
+                    AssocPool.StopThreads = true;
+
+                if (IsMain)
                 {
-                    var totalDepth = Nodes - iter;
-                    var depth = totalDepth / iter;
-                    var (pv, scoreSig) = Tree.GetPV((uint)depth);
-                    var time = Math.Max(1, Math.Round(info.TimeManager.GetSearchTime()));
-                    var nodes = Nodes;
-                    var nps = (ulong)((double)nodes / (time / 1000));
-                    var score = (int)InvSigmoid(scoreSig);
-                    Console.Write($"info depth {depth} time {time} score {score} nodes {nodes} nps {nps} ");
-                    Console.WriteLine($"pv {string.Join(' ', pv)}");
+                    if (PlayoutIteration % 8192 == 0)
+                        info.OnIterationUpdate?.Invoke(ref info);
+
+                    if (PlayoutIteration % 2048 == 0 && AssocPool.GetNodeCount() >= info.NodeLimit)
+                        AssocPool.StopThreads = true;
+
+                    if (PlayoutIteration % 2048 == 0 && info.TimeManager.GetSearchTime() >= info.TimeManager.SoftTimeLimit)
+                        AssocPool.StopThreads = true;
                 }
             }
+
         }
 
         protected virtual void Dispose(bool disposing)

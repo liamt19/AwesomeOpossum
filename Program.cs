@@ -19,7 +19,7 @@ namespace AwesomeOpossum
             {
                 if (args[0] == "bench")
                 {
-                    SearchBench.Go(12, openBench: true);
+                    SearchBench.Go(4, openBench: true);
                     Environment.Exit(0);
                 }
                 else if (args[0] == "compiler")

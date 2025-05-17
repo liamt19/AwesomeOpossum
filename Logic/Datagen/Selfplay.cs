@@ -54,7 +54,7 @@ namespace AwesomeOpossum.Logic.Datagen
                 SoftNodeLimit = softNodeLimit,
                 NodeLimit = softNodeLimit * 20,
                 DepthLimit = (int)depthLimit,
-                OnDepthFinish = null,
+                OnIterationUpdate = null,
                 OnSearchFinish = null,
             };
 
@@ -63,7 +63,7 @@ namespace AwesomeOpossum.Logic.Datagen
                 SoftNodeLimit = softNodeLimit * 20,
                 NodeLimit = softNodeLimit * 400,
                 DepthLimit = Math.Clamp((int)depthLimit, 8, 10),
-                OnDepthFinish = null,
+                OnIterationUpdate = null,
                 OnSearchFinish = null,
             };
 

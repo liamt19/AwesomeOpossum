@@ -17,6 +17,8 @@ public unsafe class Tree
 
     public bool IsEmpty => Filled == 0;
 
+    public uint FillLevel => (uint)((1000 * Filled) / NodesLength);
+    public Move BestRootMove => GetBestAction(0).move;
     public Span<Node> NodeSpan => new(Nodes, (int)NodesLength);
     public ref Node RootNode => ref this[0];
 
@@ -57,10 +59,10 @@ public unsafe class Tree
         });
     }
 
-    public uint ReserveNodes(uint additional)
+    public bool ReserveNodes(uint additional, out uint newFilled)
     {
-        var newFilled = Interlocked.Add(ref Filled, additional) - additional;
-        return (uint)newFilled;
+        newFilled = (uint)Interlocked.Add(ref Filled, additional) - additional;
+        return newFilled < NodesLength;
     }
 
     public Span<Node> ChildrenOf(uint parent) => ChildrenOf(this[parent]);
@@ -89,14 +91,14 @@ public unsafe class Tree
     {
         Debug.Assert(Filled == 0);
 
-        ReserveNodes(1);
+        ReserveNodes(1, out _);
         this[0].Set(Move.Null, 0.0f);
         Expand(pos, 0, 1);
         this[0].Update(1.0f - Iteration.GetNodeValue(pos, 0));
     }
 
 
-    public void Expand(Position pos, uint nodeIndex, uint depth)
+    public bool Expand(Position pos, uint nodeIndex, uint depth)
     {
         ref Node thisNode = ref this[nodeIndex];
 
@@ -111,7 +113,10 @@ public unsafe class Tree
             maxScore = MathF.Max(maxScore, p);
         }
 
-        var newPtr = ReserveNodes(count);
+        
+        if (!ReserveNodes(count, out uint newPtr))
+            return false;
+
         var pst = SearchUtils.GetPST(depth, this[nodeIndex].QValue);
 
         float total = 0.0f;
@@ -134,6 +139,8 @@ public unsafe class Tree
 
         thisNode.NumChildren = (byte)count;
         thisNode.FirstChild = newPtr;
+
+        return true;
     }
 
     public delegate float ChildSelector(in Node node);

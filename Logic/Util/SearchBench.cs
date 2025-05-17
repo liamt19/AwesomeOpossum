@@ -3,7 +3,7 @@
     public static class SearchBench
     {
 
-        public static void Go(int depth = 12, bool openBench = false)
+        public static void Go(int depth = 4, bool openBench = false)
         {
             Position pos = new Position(InitialFEN, owner: GlobalSearchPool.MainThread);
 
@@ -11,7 +11,7 @@
 
             ulong totalNodes = 0;
             SearchInformation info = new SearchInformation(pos, depth);
-            info.OnDepthFinish = null;
+            info.OnIterationUpdate = null;
             info.OnSearchFinish = null;
 
             GlobalSearchPool.MainThread.WaitForThreadFinished();

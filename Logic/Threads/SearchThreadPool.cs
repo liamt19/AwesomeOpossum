@@ -122,11 +122,8 @@ namespace AwesomeOpossum.Logic.Threads
             {
                 var td = Threads[i];
 
-                td.Nodes  = 0;
-
-                td.CompletedDepth = 0;
-                td.RootDepth = 0;
-                td.SelDepth = 0;
+                td.Nodes = td.PlayoutIteration = 0;
+                td.SelDepth = td.AverageDepth = 0;
 
                 //  Each thread gets its own copy of each of the root position's "RootMoves" since the thread will be sorting these
                 //  and doing that simultaneously would cause data races
@@ -167,7 +164,7 @@ namespace AwesomeOpossum.Logic.Threads
 
                 //  If a thread's score is higher than the previous best score,
                 //  and that thread's depth is equal to or higher than the previous, then make that the new best.
-                if (thisScore > 0 && (Threads[i].CompletedDepth >= bestThread.CompletedDepth))
+                if (thisScore > 0 && (Threads[i].CurrentDepth >= bestThread.CurrentDepth))
                     bestThread = Threads[i];
             }
 

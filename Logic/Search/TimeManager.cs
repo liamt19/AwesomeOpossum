@@ -17,13 +17,6 @@
         private const int MoveTimeBuffer = 5;
 
         /// <summary>
-        /// The minimum amount of time to search, regardless of the other limitations of the search.
-        /// This only applies to the amount of time that we were told to search for (i.e. "movetime 100").
-        /// If we receive a "stop" command from the UCI, this does no apply and we stop as soon as possible.
-        /// </summary>
-        public const int MinSearchTime = 200;
-
-        /// <summary>
         /// Set to true if the go command has the "movetime" parameter.
         /// </summary>
         public bool HasMoveTime = false;
@@ -39,8 +32,7 @@
         public int MaxSearchTime;
 
 
-        public double SoftTimeLimit = -1;
-        public bool HasSoftTime => SoftTimeLimit > 0;
+        public double SoftTimeLimit = int.MaxValue;
 
 
         public int MovesToGo = DefaultMovesToGo;

@@ -12,11 +12,12 @@ namespace AwesomeOpossum.Logic.MCTS
     {
         public static float GetCPuct(in Node node, bool isRootNode)
         {
-            if (isRootNode)
-                return 0.5f;
+            var cpu = isRootNode ? 0.5f : 0.25f;
+            
+            var scale = 5000.0f;
+            cpu *= 1 + float.Log10((node.Visits + scale) / scale);
 
-            float f = Random.Shared.NextSingle();
-            return 2.50f + f;
+            return cpu;
         }
 
         public static float GetFPU(in Node node)

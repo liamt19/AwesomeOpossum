@@ -25,8 +25,8 @@ namespace AwesomeOpossum.Logic.UCI
             this.pos = pos;
 
             info = new SearchInformation(pos);
-            info.OnDepthFinish = OnDepthDone;
-            info.OnSearchFinish = OnSearchDone;
+            info.OnIterationUpdate = Utilities.PrintIterationInfo;
+            info.OnSearchFinish = PrintFinalSearchInfo;
 
             setup = new ThreadSetup();
         }
@@ -101,8 +101,8 @@ namespace AwesomeOpossum.Logic.UCI
                     pos.IsChess960 = UCI_Chess960;
 
                     info = new SearchInformation(pos);
-                    info.OnDepthFinish = OnDepthDone;
-                    info.OnSearchFinish = OnSearchDone;
+                    info.OnIterationUpdate = PrintIterationInfo;
+                    info.OnSearchFinish = PrintFinalSearchInfo;
 
                     ParsePositionCommand(param, pos, setup);
                     NNUE.RefreshAccumulator(info.Position);
@@ -215,11 +215,6 @@ namespace AwesomeOpossum.Logic.UCI
             tm.MaxSearchTime = MaxSearchTime;
             info.DepthLimit = MaxDepth;
 
-            if (info.SearchFinishedCalled)
-            {
-                info.SearchFinishedCalled = false;
-            }
-
             int stm = info.Position.ToMove;
 
             setup.UCISearchMoves = new List<Move>();
@@ -281,44 +276,6 @@ namespace AwesomeOpossum.Logic.UCI
             return param.Any(x => x.EndsWith("time") && x.StartsWith(ColorToString(stm).ToLower()[0])) && !param.Any(x => x == "movetime");
         }
 
-
-        /// <summary>
-        /// Sends the "info depth (number) ..." string to the UCI
-        /// </summary>
-        private void OnDepthDone(ref SearchInformation info)
-        {
-            PrintSearchInfo(ref info);
-        }
-
-
-
-        private void OnSearchDone(ref SearchInformation info)
-        {
-            info.SearchActive = false;
-
-            if (info.SearchFinishedCalled)
-            {
-                return;
-            }
-
-            info.SearchFinishedCalled = true;
-            var bestThread = info.Position.Owner.AssocPool.GetBestThread();
-            if (bestThread.RootMoves.Count == 0)
-            {
-                Console.WriteLine("bestmove 0000");
-                return;
-            }
-
-            Move bestThreadMove = bestThread.RootMoves[0].Move;
-            if (bestThreadMove.IsNull())
-            {
-                ScoredMove* legal = stackalloc ScoredMove[MoveListSize];
-                int size = info.Position.GenLegal(legal);
-                bestThreadMove = legal[0].Move;
-            }
-
-            Console.WriteLine($"bestmove {bestThreadMove.ToString(info.Position.IsChess960)}");
-        }
 
         private static void HandleNewGame(SearchThreadPool pool)
         {

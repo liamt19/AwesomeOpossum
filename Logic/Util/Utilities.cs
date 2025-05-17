@@ -497,7 +497,7 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
-        public static void PrintSearchInfo(ref SearchInformation info)
+        public static void PrintIterationInfo(ref SearchInformation info)
         {
             bool pretty = !UCIClient.Active && Interop.HasAnsi && UCI_PrettyPrint;
 
@@ -514,19 +514,19 @@ namespace AwesomeOpossum.Logic.Util
 
             for (int i = 0; i < multiPV; i++)
             {
-                RootMove rm = rootMoves[i];
-
-                int depth = thisThread.RootDepth;
-                int moveScore = (int)rm.Score;
-
+                var depth = thisThread.AverageDepth;
+                var selD = thisThread.SelDepth;
+                var (pv, scoreSig) = thisThread.Tree.GetPV(selD);
+                var nps = (ulong)((double)nodes / (time / 1000));
+                var moveScore = (int)InvSigmoid(scoreSig);
                 var score = FormatMoveScore(moveScore);
-                var hashfull = thisThread.TT.GetHashFull();
+                var hashfull = thisThread.Tree.FillLevel;
 
                 if (pretty)
                 {
                     bool fill = multiPV > 1 && i != 0;
 
-                    string pDepths = $"{depth,3}/{rm.Depth,-3}";
+                    string pDepths = $"{depth,3}/{selD,-3}";
                     var pTime = ToAnsi(FormatTime(time));
                     var pNodes = ToAnsi($"{nodes / 1000,9}kn");
                     var pScore = ToAnsi($"{FormatMoveScore(moveScore, pretty),7}", ColorForScore(moveScore));
@@ -543,7 +543,7 @@ namespace AwesomeOpossum.Logic.Util
 
                     if (fill)
                     {
-                        pDepths = $"    {rm.Depth,-3}";
+                        pDepths = $"    {selD,-3}";
                         pTime   = " ".PadRight(9);
                         pNodes  = " ".PadRight(11);
                         pNps    = " ".PadRight(10);
@@ -556,17 +556,13 @@ namespace AwesomeOpossum.Logic.Util
                 }
                 else
                 {
-
-                    Console.Write($"info depth {depth} time {time} score {score}" +
-                                  $" nodes {nodes} nps {nodesPerSec} hashfull {hashfull} pv");
+                    Console.Write($"info depth {depth} seldepth {selD} time {time} score {score} nodes {nodes} nps {nps} hashfull {hashfull} pv");
                 }
 
 
-                for (int j = 0; j < MaxPly; j++)
+                for (int j = 0; j < pv.Count; j++)
                 {
-                    if (rm.PV[j] == Move.Null) break;
-
-                    string s = $" {rm.PV[j].ToString(info.Position.IsChess960)}";
+                    string s = $" {pv[j].ToString(info.Position.IsChess960)}";
 
                     if (pretty && cursorPosition >= Console.BufferWidth - 8)
                     {
@@ -581,6 +577,29 @@ namespace AwesomeOpossum.Logic.Util
 
                 Console.WriteLine();
             }
+        }
+
+
+        public static unsafe void PrintFinalSearchInfo(ref SearchInformation info)
+        {
+            info.SearchActive = false;
+
+            var bestThread = info.Position.Owner.AssocPool.GetBestThread();
+            if (bestThread.RootMoves.Count == 0)
+            {
+                Console.WriteLine("bestmove 0000");
+                return;
+            }
+
+            Move bestThreadMove = bestThread.Tree.BestRootMove;
+            if (bestThreadMove.IsNull())
+            {
+                ScoredMove* legal = stackalloc ScoredMove[MoveListSize];
+                int size = info.Position.GenLegal(legal);
+                bestThreadMove = legal[0].Move;
+            }
+
+            Console.WriteLine($"bestmove {bestThreadMove.ToString(info.Position.IsChess960)}");
         }
 
 
@@ -617,7 +636,7 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
-        private const int NormalizeEvalFactor = 252;
+        private const int NormalizeEvalFactor = 100;
         private static string FormatMoveScore(int score, bool pretty = false)
         {
             string s;

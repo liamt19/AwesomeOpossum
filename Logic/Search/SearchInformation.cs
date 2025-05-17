@@ -12,11 +12,11 @@ namespace AwesomeOpossum.Logic.Search
 
         /// <summary>
         /// The method to call (which must accept a <see langword="ref"/> <see cref="SearchInformation"/> parameter)
-        /// during a search just before the depth increases.
+        /// during a search after a certain number of iterations has completed.
         /// <br></br>
         /// By default, this will print out the "info depth # ..." string.
         /// </summary>
-        public ActionRef<SearchInformation>? OnDepthFinish;
+        public ActionRef<SearchInformation>? OnIterationUpdate;
 
         /// <summary>
         /// The method to call (which must accept a <see langword="ref"/> <see cref="SearchInformation"/> parameter)
@@ -31,12 +31,6 @@ namespace AwesomeOpossum.Logic.Search
         public int DepthLimit = Utilities.MaxDepth;
         public ulong NodeLimit = MaxSearchNodes;
         public ulong SoftNodeLimit = MaxSearchNodes;
-
-
-        /// <summary>
-        /// Set to true the first time that OnSearchFinish is invoked.
-        /// </summary>
-        public bool SearchFinishedCalled = false;
 
         /// <summary>
         /// Set to true while a search is ongoing, and false otherwise.
@@ -59,8 +53,8 @@ namespace AwesomeOpossum.Logic.Search
             this.TimeManager = new TimeManager();
             this.TimeManager.MaxSearchTime = searchTime;
 
-            this.OnDepthFinish = Utilities.PrintSearchInfo;
-            this.OnSearchFinish = (ref SearchInformation info) => Log($"bestmove {info.Position.Owner.AssocPool.GetBestThread().RootMoves[0].Move.ToString()}");
+            this.OnIterationUpdate = Utilities.PrintIterationInfo;
+            this.OnSearchFinish = Utilities.PrintFinalSearchInfo;
         }
 
         public void SetMoveTime(int moveTime)

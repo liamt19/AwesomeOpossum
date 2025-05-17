@@ -45,7 +45,9 @@ public static class Iteration
         {
             
             if (!node.IsExpanded) {
-                tree.Expand(pos, nodeIdx, depth);
+                if (!tree.Expand(pos, nodeIdx, depth))
+                    return null;
+
                 //Debug.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
             }
 
@@ -63,6 +65,9 @@ public static class Iteration
             u = PerformOne(pos, sparams, childIdx, ref depth);
             sparams.Ply -= 1;
             pos.UnmakeMove(move);
+
+            if (u is null)
+                return null;
         }
 
         u = 1.0f - u;

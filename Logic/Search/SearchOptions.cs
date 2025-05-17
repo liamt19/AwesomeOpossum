@@ -28,7 +28,7 @@
 
         public static bool UCI_Chess960 = false;
         public static bool UCI_ShowWDL = false;
-        public static bool UCI_PrettyPrint = false;
+        public static bool UCI_PrettyPrint = true;
 
         public static string SyzygyPath = "<empty>";
         public static bool UseSyzygy = true;

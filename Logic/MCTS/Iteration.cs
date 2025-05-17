@@ -3,34 +3,25 @@ using AwesomeOpossum.Logic.Search;
 using AwesomeOpossum.Logic.Threads;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace AwesomeOpossum.Logic.MCTS;
 
-public class SearchParameters
-{
-    public int Ply = -1;
-}
-
 public static class Iteration
 {
     public static float? PerformOne(Position pos, uint nodeIdx, ref uint depth)
-    {
-        return PerformOne(pos, new SearchParameters(), nodeIdx, ref depth);
-    }
-
-    public static float? PerformOne(Position pos, SearchParameters sparams, uint nodeIdx, ref uint depth)
     {
         SearchThread thisThread = pos.Owner;
         var hash = pos.Hash;
         var tree = thisThread.Tree;
         ref var node = ref tree[nodeIdx];
-        int ply = sparams.Ply + 1;
+
         depth += 1;
 
-        //Debug.Write($"{new string('\t', ply)}{nodeIdx} {node}\t");
+        //Debug.Write($"{new string('\t', RecursiveCalls())}{nodeIdx} {node}\t");
         float? u;
         if (node.IsTerminal || node.Visits == 0)
         {
@@ -61,13 +52,13 @@ public static class Iteration
             Debug.Assert(childIdx != 0);
 
             pos.MakeMove(move);
-            sparams.Ply += 1;
-            u = PerformOne(pos, sparams, childIdx, ref depth);
-            sparams.Ply -= 1;
+            u = PerformOne(pos, childIdx, ref depth);
             pos.UnmakeMove(move);
 
             if (u is null)
                 return null;
+
+            tree.PropagateMateScores(ref node, tree[childIdx].State);
         }
 
         u = 1.0f - u;
@@ -83,9 +74,9 @@ public static class Iteration
 
         return node.State switch
         {
-            NodeState.Loss => 0.0f,
-            NodeState.Draw => 0.5f,
-            NodeState.Win => 1.0f,
+            (NodeStateKind.Loss, _) => 0.0f,
+            (NodeStateKind.Draw, _) => 0.5f,
+            (NodeStateKind.Win, _) => 1.0f,
             _ => EvaluateNode(pos, nodeIdx)
         };
     }

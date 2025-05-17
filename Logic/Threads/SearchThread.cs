@@ -265,6 +265,12 @@ namespace AwesomeOpossum.Logic.Threads
                 if (CurrentDepth > info.DepthLimit)
                     AssocPool.StopThreads = true;
 
+                if (Tree.RootNode.IsTerminal)
+                {
+                    info.OnIterationUpdate?.Invoke(ref info);
+                    AssocPool.StopThreads = true;
+                }
+
                 if (IsMain)
                 {
                     if (PlayoutIteration % 8192 == 0)

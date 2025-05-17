@@ -6,15 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace AwesomeOpossum.Logic.MCTS;
-
-public enum NodeState : byte
-{
-    Unterminated = 0,
-    Loss,
-    Draw,
-    Win
-}
-
 public struct Node
 {
     private const int Quantization =  16384 * 4;
@@ -29,7 +20,7 @@ public struct Node
     public NodeState State;
     public Move Move;
 
-    public bool IsTerminal => State != NodeState.Unterminated;
+    public bool IsTerminal => State.Kind != NodeStateKind.Unterminated;
     public bool HasChildren => (NumChildren != 0);
     public bool IsExpanded => (IsTerminal || HasChildren);
     public bool IsValid => (this != default);
@@ -38,11 +29,10 @@ public struct Node
     {
         get
         {
-            var v = Visits;
-            if (v == 0)
+            if (Visits == 0)
                 return 0.0f;
 
-            double q = (SumQ / v) / (double)Quantization;
+            double q = (SumQ / Visits) / (double)Quantization;
             return (float)q;
         }
     }
@@ -78,7 +68,7 @@ public struct Node
     public static bool operator ==(Node l, Node r) => l.Equals(r);
     public static bool operator !=(Node l, Node r) => !l.Equals(r);
 
-    public static bool Equals(Node l, Node r) => l.PolicyValue == r.PolicyValue && l.FirstChild == r.FirstChild && l.Move == r.Move;
+    public static bool Equals(Node l, Node r) => l.Visits == r.Visits && l.FirstChild == r.FirstChild && l.Move == r.Move;
 
     public override string ToString() => $"{State}, {Move}={PolicyValue} V={Visits} C={NumChildren} @ {FirstChild}";
 }

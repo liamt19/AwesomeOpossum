@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.X86;
@@ -504,6 +506,7 @@ namespace AwesomeOpossum.Logic.Util
             int cursorPosition = 0;
 
             SearchThread thisThread = info.Position.Owner;
+            var rootNode = thisThread.Tree.RootNode;
 
             List<RootMove> rootMoves = thisThread.RootMoves;
             int multiPV = Math.Min(MultiPV, rootMoves.Count);
@@ -518,9 +521,17 @@ namespace AwesomeOpossum.Logic.Util
                 var selD = thisThread.SelDepth;
                 var (pv, scoreSig) = thisThread.Tree.GetPV(selD);
                 var nps = (ulong)((double)nodes / (time / 1000));
-                var moveScore = (int)InvSigmoid(scoreSig);
-                var score = FormatMoveScore(moveScore);
                 var hashfull = thisThread.Tree.FillLevel;
+
+                bool isMate = scoreSig > 1.0f || scoreSig < 0.0f;
+                var moveScore = (int)InvSigmoid(scoreSig);
+
+                if (scoreSig > 1.0f)
+                    moveScore = DivCeil(rootNode.State.Length, 2);
+                else if (scoreSig < 0.0f)
+                    moveScore = -rootNode.State.Length / 2;
+
+                var score = FormatMoveScore(moveScore, isMate, pretty);
 
                 if (pretty)
                 {
@@ -529,7 +540,7 @@ namespace AwesomeOpossum.Logic.Util
                     string pDepths = $"{depth,3}/{selD,-3}";
                     var pTime = ToAnsi(FormatTime(time));
                     var pNodes = ToAnsi($"{nodes / 1000,9}kn");
-                    var pScore = ToAnsi($"{FormatMoveScore(moveScore, pretty),7}", ColorForScore(moveScore));
+                    var pScore = ToAnsi($"{FormatMoveScore(moveScore, isMate, pretty),7}", ColorForScore(moveScore, isMate));
                     var pNps = ToAnsi($"{(nodes / (time / 1000)) / 1000000,6:0.00}mn/s");
 
 
@@ -604,8 +615,11 @@ namespace AwesomeOpossum.Logic.Util
 
 
         private static string ToAnsi(string s, int code = 8) => $"\u001b[38;5;{code}m{s}\u001b[0m";
-        private static int ColorForScore(int score)
+        private static int ColorForScore(int score, bool isMate)
         {
+            if (isMate)
+                return 13;
+
             return score switch
             {
                 >= -30 and <= 30                                => 7,   //  White
@@ -635,17 +649,19 @@ namespace AwesomeOpossum.Logic.Util
             return $"{ts,9:h\\hmm\\mss\\s}";
         }
 
+        public static int DivCeil(int a, int b)
+        {
+            return ((a - 1) / b) + 1;
+        }
 
         private const int NormalizeEvalFactor = 100;
-        private static string FormatMoveScore(int score, bool pretty = false)
+        private static string FormatMoveScore(int score, bool isMate, bool pretty = false)
         {
             string s;
 
-            if (IsScoreMate(score))
+            if (isMate)
             {
-                s = pretty ? "#" : "mate ";
-                s += (score > 0) ? (( ScoreMate - score + 1) / 2)
-                                 : ((-ScoreMate - score    ) / 2);
+                s = $"{(pretty ? "#" : "mate ")}{score}";
             }
             else
             {
@@ -742,6 +758,15 @@ namespace AwesomeOpossum.Logic.Util
 
                 setup.SetupMoves.Add(m);
             }
+        }
+
+
+        [MethodImpl(NoInline)]
+        public static int RecursiveCalls()
+        {
+            var stack = new StackTrace().GetFrames().Select(x => x.GetMethod()).Skip(1).ToArray();
+            var methodV = stack[0].MethodHandle.Value;
+            return stack.TakeWhile(x => x.MethodHandle.Value == methodV).Count() - 1;
         }
 
 

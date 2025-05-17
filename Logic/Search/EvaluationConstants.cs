@@ -20,6 +20,9 @@ namespace AwesomeOpossum.Logic.Search
         public const int ScoreAssuredWin = 20000;
         public const int ScoreWin = 10000;
 
+        public const float ScorePVWin = 1.1f;
+        public const float ScorePVLoss = -0.1f;
+
         [MethodImpl(Inline)]
         public static int MakeDrawScore(ulong nodes)
         {

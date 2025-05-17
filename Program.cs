@@ -2,6 +2,7 @@
 using System.Text;
 
 using AwesomeOpossum.Logic.Datagen;
+using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.NN;
 using AwesomeOpossum.Logic.Threads;
 
@@ -111,6 +112,10 @@ namespace AwesomeOpossum
                 else if (input.EqualsIgnoreCase("eval all"))
                 {
                     HandleEvalAllCommand();
+                }
+                else if (input.EqualsIgnoreCase("policy"))
+                {
+                    HandlePolicyCommand();
                 }
                 else if (input.EqualsIgnoreCase("d"))
                 {
@@ -316,19 +321,43 @@ namespace AwesomeOpossum
             {
                 Move m = list[i].Move;
                 p.MakeMove(m);
-                int moveEval = 0;
-
-                moveEval = NNUE.GetEvaluation(p);
-
+                scoreList.Add((m, -NNUE.GetEvaluation(p)));
                 p.UnmakeMove(m);
-                scoreList.Add((m, moveEval));
             }
 
-            var sorted = scoreList.OrderBy(x => x.eval).ToList();
+            var sorted = scoreList.OrderByDescending(x => x.eval).ToList();
             for (int i = 0; i < sorted.Count; i++)
+                Log($"{sorted[i].mv.ToString(p)}: {sorted[i].eval}");
+        }
+
+        private static void HandlePolicyCommand()
+        {
+            float* rawPolicy = stackalloc float[256];
+            ScoredMove* moves = stackalloc ScoredMove[256];
+            uint count = (uint)p.GenLegal(moves);
+            
+            List<(Move mv, float policy, float raw)> scoreList = new();
+
+            float maxScore = float.MinValue;
+            for (uint i = 0; i < count; i++)
             {
-                Log($"{sorted[i].mv.ToString(p)}: {sorted[i].eval * -1}");
+                rawPolicy[i] = moves[i].Score = SearchUtils.PolicyForMove(p, moves[i].Move);
+                maxScore = MathF.Max(maxScore, moves[i].Score);
             }
+
+            float total = 0.0f;
+            for (uint i = 0; i < count; i++)
+            {
+                moves[i].Score = float.Exp(moves[i].Score - maxScore);
+                total += moves[i].Score;
+            }
+
+            for (uint i = 0; i < count; i++)
+                scoreList.Add((moves[i].Move, (moves[i].Score / total * 100.0f), rawPolicy[i]));
+
+            var sorted = scoreList.OrderBy(x => x.raw).ToList();
+            for (int i = 0; i < sorted.Count; i++)
+                Log($"{sorted[i].mv.ToString(p),-5}->{sorted[i].policy,9:0.000}%{sorted[i].raw,12:0.0}");
         }
 
 

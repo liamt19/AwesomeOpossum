@@ -97,8 +97,7 @@ namespace AwesomeOpossum.Logic.Core
 
         public NodeState PlayoutState()
         {
-            var ply = (short)State->HalfmoveClock;
-            if (IsDraw(ply))
+            if (IsDraw(0))
                 return NodeState.Draw;
 
             if (HasLegalMoves())

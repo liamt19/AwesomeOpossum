@@ -108,12 +108,10 @@ public unsafe class Tree
         float maxScore = float.MinValue;
         for (uint i = 0; i < count; i++)
         {
-            var p = SearchUtils.PolicyForMove(pos, moves[i].Move);
-            moves[i].Score = p;
-            maxScore = MathF.Max(maxScore, p);
+            moves[i].Score = SearchUtils.PolicyForMove(pos, moves[i].Move);
+            maxScore = MathF.Max(maxScore, moves[i].Score);
         }
 
-        
         if (!ReserveNodes(count, out uint newPtr))
             return false;
 
@@ -122,19 +120,13 @@ public unsafe class Tree
         float total = 0.0f;
         for (uint i = 0; i < count; i++)
         {
-            var p = moves[i].Score;
             moves[i].Score = float.Exp((moves[i].Score - maxScore) / pst);
             total += moves[i].Score;
         }
 
         for (uint i = 0; i < count; i++)
         {
-            var p = moves[i].Score / total;
-            var ptr = newPtr + i;
-
-            Debug.Assert(!this[ptr].IsValid);
-
-            this[ptr].Set(moves[i].Move, p);
+            this[newPtr + i].Set(moves[i].Move, (moves[i].Score / total));
         }
 
         thisNode.NumChildren = (byte)count;
@@ -143,8 +135,46 @@ public unsafe class Tree
         return true;
     }
 
+    public void PropagateMateScores(ref Node parent, in NodeState childState)
+    {
+        if (childState.Kind == NodeStateKind.Unterminated || childState.Kind == NodeStateKind.Draw)
+            return;
+
+        if (childState.Kind == NodeStateKind.Loss)
+        {
+            parent.State = NodeState.MakeWin((byte)(childState.Length + 1));
+            return;
+        }
+
+        bool isLosing = true;
+        byte maxWinLen = childState.Length;
+        var firstChild = parent.FirstChild;
+        for (uint i = firstChild; i < firstChild + parent.NumChildren; i++)
+        {
+            var s = this[i].State;
+            if (s.Kind == NodeStateKind.Win)
+            {
+                maxWinLen = Math.Max(maxWinLen, s.Length);
+            }
+            else
+            {
+                isLosing = false;
+                break;
+            }
+        }
+
+        if (isLosing)
+            parent.State = NodeState.MakeLoss((byte)(maxWinLen + 1));
+    }
+
+    /// <summary>
+    /// Lambda to be called on each child node, returning a float score
+    /// </summary>
     public delegate float ChildSelector(in Node node);
-    //  Returns the index of the child, that is
+    
+    /// <summary>
+    ///  Returns the index of the child within the tree
+    /// </summary>
     public uint GetBestChildFunc(uint nodeIndex, ChildSelector F)
     {
         uint bestIdx = int.MaxValue;
@@ -160,6 +190,7 @@ public unsafe class Tree
                 bestScore = score;
                 bestIdx = i;
             }
+            //Debug.WriteLine($"{this[nodeIndex]} {score}");
         }
 
         return thisNode.FirstChild + bestIdx;
@@ -181,9 +212,9 @@ public unsafe class Tree
 
             return n.State switch
             {
-                NodeState.Loss => 0.0f,
-                NodeState.Draw => 0.5f,
-                NodeState.Win => 1.0f,
+                (NodeStateKind.Loss, _) => 1.0f + n.State.Length,
+                (NodeStateKind.Win, _) => n.State.Length - MaxPly,
+                (NodeStateKind.Draw, _) => 0.5f,
                 _ => n.QValue
             };
         });
@@ -201,9 +232,9 @@ public unsafe class Tree
         {
             score = this[idx].State switch
             {
-                NodeState.Loss => 1.1f,
-                NodeState.Draw => 0.5f,
-                NodeState.Win => -0.1f,
+                (NodeStateKind.Loss, _) => ScorePVWin,
+                (NodeStateKind.Draw, _) => 0.5f,
+                (NodeStateKind.Win, _) => -0.1f,
                 _ => q
             };
         }

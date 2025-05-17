@@ -27,7 +27,7 @@ namespace AwesomeOpossum.Logic.MCTS
 
         public static float GetExplorationScale(in Node node)
         {
-            return 0.5f * float.Exp(float.Log10(Math.Max(node.Visits, 1)));
+            return float.Exp(0.5f * float.Log10(Math.Max(node.Visits, 1)));
         }
 
         public static float GetPST(uint depth, float q)
@@ -35,24 +35,17 @@ namespace AwesomeOpossum.Logic.MCTS
             return 1.0f;
         }
 
-        public static uint AssignScores(Position pos, ScoredMove* moves)
-        {
-            int size = pos.GenLegal(moves);
 
-            for (int i = 0; i < size; i++)
-            {
-                moves[i].Score = PolicyForMove(pos, moves[i].Move);
-            }
-
-            return (uint)size;
-        }
-
-        public static int PolicyForMove(Position pos, Move move)
+        public static float PolicyForMove(Position pos, Move move)
         {
             pos.MakeMove(move);
-            int ev = Pesto.Evaluate(pos);
+            int v = Pesto.Evaluate(pos);
             pos.UnmakeMove(move);
-            return -ev;
+
+            float ev = (float)-v;
+            ev /= 50.0f;
+
+            return ev;
         }
     }
 }

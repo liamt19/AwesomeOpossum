@@ -43,7 +43,7 @@ namespace AwesomeOpossum.Logic.MCTS
             pos.UnmakeMove(move);
 
             float ev = (float)-v;
-            ev /= 50.0f;
+            ev /= 100.0f;
 
             return ev;
         }

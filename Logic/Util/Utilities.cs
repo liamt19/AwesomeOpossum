@@ -513,7 +513,6 @@ namespace AwesomeOpossum.Logic.Util
 
             double time = Math.Max(1, Math.Round(info.TimeManager.GetSearchTime()));
             ulong nodes = thisThread.AssocPool.GetNodeCount();
-            int nodesPerSec = (int)((double)nodes / (time / 1000));
 
             for (int i = 0; i < multiPV; i++)
             {

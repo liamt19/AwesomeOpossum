@@ -27,7 +27,6 @@ namespace AwesomeOpossum.Logic.Threads
         public SearchThread[] Threads;
         public SearchThread MainThread => Threads[0];
 
-        public TranspositionTable TTable;
         public Tree SharedTree;
 
         /// <summary>
@@ -46,7 +45,6 @@ namespace AwesomeOpossum.Logic.Threads
         public SearchThreadPool(int threadCount)
         {
             Blocker = new Barrier(1);
-            TTable = new TranspositionTable(Hash);
             SharedTree = new Tree(Hash);
             Resize(threadCount);
         }
@@ -74,7 +72,6 @@ namespace AwesomeOpossum.Logic.Threads
             {
                 Threads[i] = new SearchThread(i);
                 Threads[i].AssocPool = this;
-                Threads[i].TT = TTable;
                 Threads[i].Tree = SharedTree;
             }
 
@@ -244,8 +241,6 @@ namespace AwesomeOpossum.Logic.Threads
 
         public void ResizeHashes()
         {
-            TTable.Initialize(Hash);
-
             for (int i = 0; i < ThreadCount; i++)
                 Threads[i].Tree.Resize(Hash);
         }

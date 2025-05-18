@@ -28,7 +28,7 @@ public static unsafe class Iteration
             if (node.Visits == 0)
                 node.State = pos.PlayoutState();
 
-            if (!node.IsTerminal && thisThread.TT.Probe(hash, out TTEntry* tte))
+            if (!node.IsTerminal && tree.TT.Probe(hash, out TTEntry* tte))
             {
                 u = tte->Q;
             }
@@ -70,7 +70,7 @@ public static unsafe class Iteration
 
         u = 1.0f - u;
         float newQ = node.Update(u);
-        thisThread.TT.Store(hash, 1.0f - newQ);
+        tree.TT.Store(hash, 1.0f - newQ);
 
         return u;
     }

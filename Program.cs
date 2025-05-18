@@ -403,7 +403,6 @@ namespace AwesomeOpossum
                 return;
             }
 
-            p.Owner.TT.Clear();
             p.Owner.AssocPool.Clear();
 
             info = new SearchInformation(p, MaxDepth);

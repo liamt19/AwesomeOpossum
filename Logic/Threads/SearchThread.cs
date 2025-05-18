@@ -37,7 +37,6 @@ namespace AwesomeOpossum.Logic.Threads
         public BucketCache[] CachedBuckets;
 
         public SearchThreadPool AssocPool;
-        public TranspositionTable TT;
         public Tree Tree;
 
         private Thread _SysThread;

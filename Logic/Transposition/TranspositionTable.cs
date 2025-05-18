@@ -10,10 +10,10 @@ namespace AwesomeOpossum.Logic.Transposition
 
         public TranspositionTable(int mb)
         {
-            Initialize(mb);
+            Resize(mb);
         }
 
-        public unsafe void Initialize(int mb)
+        public unsafe void Resize(int mb)
         {
             if (Entries != null)
                 NativeMemory.AlignedFree(Entries);
@@ -59,6 +59,19 @@ namespace AwesomeOpossum.Logic.Transposition
         {
             var p = ProbeHash(hash);
             p->Replace(hash, u);
+        }
+
+        public int GetHashFull()
+        {
+            int entries = 0;
+            for (int i = 0; i < 1000; i++)
+            {
+                if (Entries[i].Key != 0 || Entries[i].Q != 0)
+                {
+                    entries++;
+                }
+            }
+            return entries;
         }
     }
 }

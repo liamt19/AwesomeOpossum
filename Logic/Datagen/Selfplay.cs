@@ -71,7 +71,6 @@ namespace AwesomeOpossum.Logic.Datagen
 
             for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
             {
-                pool.TTable.Clear();
                 pool.Clear();
 
                 if (dfrc)

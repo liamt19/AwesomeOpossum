@@ -280,7 +280,6 @@ namespace AwesomeOpossum.Logic.UCI
         private static void HandleNewGame(SearchThreadPool pool)
         {
             pool.MainThread.WaitForThreadFinished();
-            pool.TTable.Clear();
             pool.Clear();
         }
 

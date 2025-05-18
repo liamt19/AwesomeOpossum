@@ -14,7 +14,11 @@ namespace AwesomeOpossum.Logic.Transposition
         public readonly float Q => _Q / (float)ushort.MaxValue;
 
         [MethodImpl(Inline)]
-        public void SetQ(float u) => _Q = (ushort)(u * (float)ushort.MaxValue);
+        public void SetQ(float u)
+        {
+            Debug.Assert(u >= 0.0f && u <= 1.0f);
+            _Q = (ushort)(u * (float)ushort.MaxValue);
+        }
 
 
         [MethodImpl(Inline)]

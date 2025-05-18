@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace AwesomeOpossum.Logic.MCTS;
 public struct Node
 {
-    private const int Quantization =  16384 * 4;
+    private const double Quantization =  16384.0 * 4;
 
     public ulong SumQ;
     public float PolicyValue;
@@ -33,7 +33,7 @@ public struct Node
             if (Visits == 0)
                 return 0.0f;
 
-            double q = (SumQ / Visits) / (double)Quantization;
+            double q = (SumQ / (double)Visits) / Quantization;
             return (float)q;
         }
     }
@@ -63,7 +63,7 @@ public struct Node
         var oldQ = Interlocked.Add(ref SumQ, nq) - nq;
         //SumQSq += (q * q);
 
-        return (float)((double)((q + oldQ) / (1 + oldV)) / Quantization);
+        return (float)(((nq + oldQ) / (1.0 + oldV)) / Quantization);
     }
 
     public static bool operator ==(Node l, Node r) => l.Equals(r);

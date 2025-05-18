@@ -11,6 +11,8 @@ namespace AwesomeOpossum.Logic.MCTS;
 
 public unsafe class Tree
 {
+    public TranspositionTable TT;
+
     public Node* Nodes;
     private ulong NodesLength;
     private ulong Filled;
@@ -30,6 +32,8 @@ public unsafe class Tree
         NodesLength = 0;
         Filled = 0;
 
+        TT = new TranspositionTable(mb / 4);
+
         Resize(mb);
     }
 
@@ -40,14 +44,16 @@ public unsafe class Tree
 
         NodesLength = (ulong)mb * 0x100000UL / (ulong)sizeof(Node);
         Nodes = AlignedAllocZeroed<Node>((nuint)NodesLength);
+
+        TT.Resize(mb / 4);
     }
 
     public void Clear()
     {
         Filled = 0;
 
-        const int numThreads = 2;
-        ulong clustersPerThread = NodesLength / numThreads;
+        int numThreads = SearchOptions.Threads;
+        ulong clustersPerThread = NodesLength / (ulong)numThreads;
         Parallel.For(0, numThreads, new ParallelOptions { MaxDegreeOfParallelism = numThreads }, (i) =>
         {
             ulong start = clustersPerThread * (ulong)i;
@@ -57,6 +63,8 @@ public unsafe class Tree
 
             NativeMemory.Clear(&Nodes[start], (nuint)sizeof(Node) * (nuint)length);
         });
+
+        TT.Clear();
     }
 
     public bool ReserveNodes(uint additional, out uint newFilled)
@@ -248,5 +256,20 @@ public unsafe class Tree
         }
 
         return (list, score);
+    }
+
+    public void Debug_GetRootMoves(Position pos)
+    {
+        var children = ChildrenOf(RootNode);
+
+        foreach (var child in children)
+        {
+            pos.MakeMove(child.Move);
+            var h = pos.Hash;
+            pos.UnmakeMove(child.Move);
+
+            bool found = TT.Probe(h, out TTEntry* tte);
+            Log($"{child} -> {(found ? tte->Key : string.Empty)} {(found ? tte->Q : string.Empty)}");
+        }
     }
 }

@@ -52,10 +52,10 @@ namespace AwesomeOpossum
 
 
             Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e) {
-                if (!GlobalSearchPool.StopThreads)
+                if (!GlobalSearchPool.MainThread.ShouldStop())
                 {
                     //  If a search is ongoing, stop it instead of closing the console.
-                    GlobalSearchPool.StopThreads = true;
+                    GlobalSearchPool.StopAllThreads();
                     e.Cancel = true;
                 }
 
@@ -140,7 +140,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.StartsWithIgnoreCase("stop"))
                 {
-                    GlobalSearchPool.StopThreads = true;
+                    GlobalSearchPool.StopAllThreads();
                 }
                 else if (input.StartsWithIgnoreCase("load"))
                 {
@@ -178,12 +178,9 @@ namespace AwesomeOpossum
                     if (int.TryParse(param[1], out int hash))
                     {
                         Hash = hash;
-                        GlobalSearchPool.TTable.Initialize(Hash);
+                        GlobalSearchPool.ResizeHashes();
+
                     }
-                }
-                else if (input.ContainsIgnoreCase("searchinfo"))
-                {
-                    PrintSearchInfo();
                 }
                 else if (input.StartsWithIgnoreCase("bench"))
                 {
@@ -220,29 +217,6 @@ namespace AwesomeOpossum
             }
         }
 
-
-        private static void DoPerftIterative(int depth)
-        {
-            if (depth <= 0) return;
-
-            //  The Position "p" has UpdateNN == true, which we don't want
-            //  for purely Perft usage.
-            Position pos = new Position(p.GetFEN(), false, null);
-
-            Stopwatch sw = Stopwatch.StartNew();
-
-            for (int d = 1; d <= depth; d++)
-            {
-                sw.Restart();
-                ulong result = pos.Perft(d);
-                sw.Stop();
-
-                var time = sw.Elapsed.TotalSeconds;
-                Log($"Depth {d}: \tnodes {result,12}\ttime {time,12:N6}\tnps {(int)(result / time),14:N0}");
-
-            }
-        }
-
         private static void DoPerftDivide(int depth)
         {
             if (depth <= 0) return;
@@ -273,41 +247,6 @@ namespace AwesomeOpossum
             Log($"\r\nNodes searched: {total} in {sw.Elapsed.TotalSeconds} s ({(int)(total / sw.Elapsed.TotalSeconds):N0} nps)\r\n");
         }
 
-        private static void DoPerftNN(int depth)
-        {
-            if (depth <= 0) return;
-
-            Stopwatch sw = Stopwatch.StartNew();
-
-            Span<ScoredMove> list = stackalloc ScoredMove[MoveListSize];
-            int size = p.GenLegal(list);
-
-            for (int i = 0; i < size; i++)
-            {
-                Move m = list[i].Move;
-                p.MakeMove(m);
-                long result = depth > 1 ? p.PerftNN(depth - 1) : 1;
-                p.UnmakeMove(m);
-                Log($"{m.ToString()}: {result}");
-            }
-            sw.Stop();
-
-            ulong[] shannon = { 0, 20, 400, 8902, 197281, 4865609, 119060324, 3195901860, 84998978956, 2439530234167 };
-            ulong nodeCount = depth < shannon.Length ? shannon[depth] : 0;
-            Log($"\r\nRefreshed {nodeCount} times in {sw.Elapsed.TotalSeconds} s ({(int)(nodeCount / sw.Elapsed.TotalSeconds):N0} nps)\r\n");
-        }
-
-        private static void PrintSearchInfo()
-        {
-            Log(info.ToString());
-            Log("\r\n");
-            p.Owner.TT.PrintClusterStatus();
-        }
-
-        /// <summary>
-        /// Prints out the current static evaluation of the position, and the static evaluations after 
-        /// each of the legal moves for that position are made.
-        /// </summary>
         private static void HandleEvalAllCommand()
         {
             Log($"Static evaluation ({ColorToString(p.ToMove)}'s perspective): {NNUE.GetEvaluation(p)}");
@@ -359,7 +298,6 @@ namespace AwesomeOpossum
             for (int i = 0; i < sorted.Count; i++)
                 Log($"{sorted[i].mv.ToString(p),-5}->{sorted[i].policy,9:0.000}%{sorted[i].raw,12:0.0}");
         }
-
 
         private static void PrintMoves()
         {
@@ -449,24 +387,6 @@ namespace AwesomeOpossum
 
                     return;
                 }
-                else if (param[1].ContainsIgnoreCase("perfti"))
-                {
-                    if (int.TryParse(param[2], out int depth))
-                    {
-                        Task.Run(() => DoPerftIterative(depth));
-                    }
-
-                    return;
-                }
-                else if (param[1].ContainsIgnoreCase("perftnn"))
-                {
-                    if (int.TryParse(param[2], out int depth))
-                    {
-                        Task.Run(() => DoPerftNN(depth));
-                    }
-
-                    return;
-                }
                 else if (param[1].ContainsIgnoreCase("perft"))
                 {
                     if (int.TryParse(param[2], out int depth))
@@ -483,18 +403,12 @@ namespace AwesomeOpossum
                 return;
             }
 
-            p.Owner.TT.Clear();
             p.Owner.AssocPool.Clear();
 
             info = new SearchInformation(p, MaxDepth);
-            info.TimeManager.MaxSearchTime = MaxSearchTime;
+            TimeManager.Reset();
 
-            bool makeTime = UCIClient.ParseGo(param, ref info, setup);
-            if (makeTime)
-            {
-                info.TimeManager.MakeMoveTime();
-            }
-
+            UCIClient.ParseGo(param, ref info, setup);
             GlobalSearchPool.StartSearch(p, ref info, setup);
         }
 
@@ -590,19 +504,6 @@ namespace AwesomeOpossum
                 SearchBench.Go(depth);
             }
         }
-
-
-        private static void DotTraceProfile(int depth = 24)
-        {
-            info.TimeManager.MaxSearchTime = 30000;
-            info.DepthLimit = depth;
-
-            GlobalSearchPool.StartSearch(p, ref info);
-            GlobalSearchPool.BlockCallerUntilFinished();
-
-            Environment.Exit(0);
-        }
-
     }
 
 }

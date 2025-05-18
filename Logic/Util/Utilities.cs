@@ -13,7 +13,7 @@ namespace AwesomeOpossum.Logic.Util
 {
     public static class Utilities
     {
-        public const string EngineBuildVersion = "0.0.1";
+        public const string EngineBuildVersion = "0.0.2";
 
         public const int NormalListCapacity = 128;
         public const int MoveListSize = 256;
@@ -508,12 +508,10 @@ namespace AwesomeOpossum.Logic.Util
             SearchThread thisThread = info.Position.Owner;
             var rootNode = thisThread.Tree.RootNode;
 
-            List<RootMove> rootMoves = thisThread.RootMoves;
-            int multiPV = Math.Min(MultiPV, rootMoves.Count);
+            int multiPV = Math.Min(MultiPV, rootNode.NumChildren);
 
-            double time = Math.Max(1, Math.Round(info.TimeManager.GetSearchTime()));
+            double time = Math.Max(1, Math.Round(TimeManager.GetSearchTime()));
             ulong nodes = thisThread.AssocPool.GetNodeCount();
-            int nodesPerSec = (int)((double)nodes / (time / 1000));
 
             for (int i = 0; i < multiPV; i++)
             {
@@ -596,12 +594,6 @@ namespace AwesomeOpossum.Logic.Util
             info.SearchActive = false;
 
             var bestThread = info.Position.Owner.AssocPool.GetBestThread();
-            if (bestThread.RootMoves.Count == 0)
-            {
-                Console.WriteLine("bestmove 0000");
-                return;
-            }
-
             Move bestThreadMove = bestThread.Tree.BestRootMove;
             if (bestThreadMove.IsNull())
             {

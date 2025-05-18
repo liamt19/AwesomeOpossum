@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace AwesomeOpossum.Logic.MCTS;
 
-public static class Iteration
+public static unsafe class Iteration
 {
     public static float? PerformOne(Position pos, uint nodeIdx, ref uint depth)
     {
@@ -28,7 +28,14 @@ public static class Iteration
             if (node.Visits == 0)
                 node.State = pos.PlayoutState();
 
-            u = GetNodeValue(pos, nodeIdx);
+            if (!node.IsTerminal && tree.TT.Probe(hash, out TTEntry* tte))
+            {
+                u = tte->Q;
+            }
+            else
+            {
+                u = GetNodeValue(pos, nodeIdx);
+            }
 
             //Debug.WriteLine($"value {u}");
         }
@@ -62,7 +69,8 @@ public static class Iteration
         }
 
         u = 1.0f - u;
-        node.Update(u);
+        float newQ = node.Update(u);
+        tree.TT.Store(hash, 1.0f - newQ);
 
         return u;
     }

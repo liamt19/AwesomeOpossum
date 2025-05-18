@@ -14,8 +14,9 @@
             info.OnIterationUpdate = null;
             info.OnSearchFinish = null;
 
+            TimeManager.SetHardLimit(20000);
+
             GlobalSearchPool.MainThread.WaitForThreadFinished();
-            GlobalSearchPool.TTable.Clear();
             GlobalSearchPool.Clear();
 
             foreach (string fen in BenchFENs)
@@ -32,7 +33,6 @@
                     Log($"{fen,-76}\t{thisNodeCount}");
                 }
 
-                GlobalSearchPool.TTable.Clear();
                 GlobalSearchPool.Clear();
             }
             sw.Stop();

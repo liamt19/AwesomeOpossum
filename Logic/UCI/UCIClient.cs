@@ -109,12 +109,12 @@ namespace AwesomeOpossum.Logic.UCI
                 }
                 else if (cmd == "go")
                 {
-                    GlobalSearchPool.StopThreads = false;
+                    GlobalSearchPool.StartAllThreads();
                     HandleGo(param);
                 }
                 else if (cmd == "stop")
                 {
-                    GlobalSearchPool.StopThreads = true;
+                    GlobalSearchPool.StopAllThreads();
                 }
                 else if (cmd == "leave")
                 {
@@ -189,63 +189,50 @@ namespace AwesomeOpossum.Logic.UCI
         private void HandleGo(string[] param)
         {
             if (info.SearchActive)
-            {
                 return;
-            }
 
-            bool makeTime = ParseGo(param, ref info, setup);
-
-            //  If we weren't told to search for a specific time (no "movetime" and not "infinite"),
-            //  then we make one ourselves
-            if (makeTime)
-            {
-                info.TimeManager.MakeMoveTime();
-            }
-
+            ParseGo(param, ref info, setup);
             GlobalSearchPool.StartSearch(info.Position, ref info, setup);
         }
 
 
-        public static bool ParseGo(string[] param, ref SearchInformation info, ThreadSetup setup)
+        public static void ParseGo(string[] param, ref SearchInformation info, ThreadSetup setup)
         {
-            TimeManager tm = info.TimeManager;
+            var stmChar = (info.Position.ToMove == White) ? 'w' : 'b';
 
-            //  Assume that we can search infinitely, and let the UCI's "go" parameters constrain us accordingly.
-            info.NodeLimit = MaxSearchNodes;
-            tm.MaxSearchTime = MaxSearchTime;
-            info.DepthLimit = MaxDepth;
-
-            int stm = info.Position.ToMove;
+            TimeManager.Reset();
 
             setup.UCISearchMoves = new List<Move>();
+
+
+            //  Assume that we can search infinitely, and let the parameters constrain us accordingly.
+            int movetime = MaxSearchTime;
+            ulong nodeLimit = MaxSearchNodes;
+            int depthLimit = MaxDepth;
+            int playerTime = 0;
+            int increment = 0;
 
             for (int i = 0; i < param.Length - 1; i++)
             {
                 if (param[i] == "movetime" && int.TryParse(param[i + 1], out int reqMovetime))
                 {
-                    info.SetMoveTime(reqMovetime);
+                    movetime = reqMovetime;
                 }
                 else if (param[i] == "depth" && int.TryParse(param[i + 1], out int reqDepth))
                 {
-                    info.DepthLimit = reqDepth;
+                    depthLimit = reqDepth;
                 }
                 else if (param[i] == "nodes" && ulong.TryParse(param[i + 1], out ulong reqNodes))
                 {
-                    info.NodeLimit = reqNodes;
+                    nodeLimit = reqNodes;
                 }
-                else if (param[i] == "movestogo" && int.TryParse(param[i + 1], out int reqMovestogo))
+                else if (param[i].StartsWith(stmChar) && param[i].EndsWith("time") && int.TryParse(param[i + 1], out int reqPlayerTime))
                 {
-                    tm.MovesToGo = reqMovestogo;
+                    playerTime = reqPlayerTime;
                 }
-                else if (((param[i] == "wtime" && stm == White) || (param[i] == "btime" && stm == Black))
-                    && int.TryParse(param[i + 1], out int reqPlayerTime))
+                else if (param[i].StartsWith(stmChar) && param[i].EndsWith("inc") && int.TryParse(param[i + 1], out int reqPlayerIncrement))
                 {
-                    tm.PlayerTime = reqPlayerTime;
-                }
-                else if (((param[i] == "winc" && stm == White) || (param[i] == "binc" && stm == Black))
-                    && int.TryParse(param[i + 1], out int reqPlayerIncrement))
-                {
-                    tm.PlayerIncrement = reqPlayerIncrement;
+                    increment = reqPlayerIncrement;
                 }
                 else if (param[i] == "searchmoves")
                 {
@@ -261,26 +248,26 @@ namespace AwesomeOpossum.Logic.UCI
                         i++;
                     }
                 }
-                else if (param[i] == "infinite")
-                {
-                    Assert(info.NodeLimit == MaxSearchNodes, $"go infinite should have NodeLimit == {MaxSearchNodes}, but it was {info.NodeLimit}");
-                    Assert(tm.MaxSearchTime == MaxSearchTime, $"go infinite should have MaxSearchTime == {MaxSearchTime}, but it was {tm.MaxSearchTime}");
-                    Assert(info.DepthLimit == MaxDepth, $"go infinite should have DepthLimit == {MaxDepth}, but it was {info.DepthLimit}");
-
-                    info.NodeLimit = MaxSearchNodes;
-                    tm.MaxSearchTime = MaxSearchTime;
-                    info.DepthLimit = MaxDepth;
-                }
             }
 
-            return param.Any(x => x.EndsWith("time") && x.StartsWith(ColorToString(stm).ToLower()[0])) && !param.Any(x => x == "movetime");
+            info.DepthLimit = depthLimit;
+            info.HardNodeLimit = nodeLimit;
+
+            bool useSoftTM = param.Any(x => x.EndsWith("time") && x.StartsWith(stmChar)) && !param.Any(x => x == "movetime");
+            if (useSoftTM)
+            {
+                TimeManager.UpdateTimeLimits(playerTime, increment);
+            }
+            else
+            {
+                TimeManager.SetHardLimit(movetime);
+            }
         }
 
 
         private static void HandleNewGame(SearchThreadPool pool)
         {
             pool.MainThread.WaitForThreadFinished();
-            pool.TTable.Clear();
             pool.Clear();
         }
 
@@ -311,7 +298,7 @@ namespace AwesomeOpossum.Logic.UCI
 
                         if (opt.Name == nameof(Hash))
                         {
-                            GlobalSearchPool.TTable.Initialize(SearchOptions.Hash);
+                            GlobalSearchPool.ResizeHashes();
                         }
                     }
                 }
@@ -349,6 +336,7 @@ namespace AwesomeOpossum.Logic.UCI
             Options[nameof(Threads)].SetMinMax(1, 512);
             Options[nameof(MultiPV)].SetMinMax(1, 256);
             Options[nameof(Hash)].SetMinMax(1, 1048576);
+            Options[nameof(MoveOverhead)].SetMinMax(0, 2000);
 
             Options[nameof(QuietOrderMin)].AutoMinMax();
             Options[nameof(QuietOrderMax)].AutoMinMax();

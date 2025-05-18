@@ -594,7 +594,7 @@ namespace AwesomeOpossum.Logic.Core
         /// Returns the Zobrist hash of the position after the move <paramref name="m"/> is made.
         /// <para></para>
         /// This is only for simple moves and captures: en passant and castling is not considered. 
-        /// This is only used for prefetching the <see cref="TTCluster"/>, and if the move actually 
+        /// This is only used for prefetching the <see cref="TTEntry"/>, and if the move actually 
         /// is an en passant or castle then the prefetch won't end up helping anyways.
         /// </summary>
         public ulong HashAfter(Move m)
@@ -978,33 +978,6 @@ namespace AwesomeOpossum.Logic.Core
                 PerftTimer.Stop();
                 Log($"\r\nNodes searched: {n} in {PerftTimer.Elapsed.TotalSeconds} s ({(int)(n / PerftTimer.Elapsed.TotalSeconds):N0} nps)\r\n");
                 PerftTimer.Reset();
-            }
-
-            return n;
-        }
-
-        /// <summary>
-        /// Same as perft but returns the evaluation at each of the leaves. 
-        /// Only for benchmarking/debugging.
-        /// </summary>
-        [SkipLocalsInit]
-        public long PerftNN(int depth)
-        {
-            ScoredMove* list = stackalloc ScoredMove[MoveListSize];
-            int size = GenLegal(list);
-
-            if (depth == 0)
-            {
-                return (long)NNUE.GetEvaluation(this);
-            }
-
-            long n = 0;
-            for (int i = 0; i < size; i++)
-            {
-                Move m = list[i].Move;
-                MakeMove(m);
-                n += PerftNN(depth - 1);
-                UnmakeMove(m);
             }
 
             return n;

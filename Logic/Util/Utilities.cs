@@ -13,7 +13,7 @@ namespace AwesomeOpossum.Logic.Util
 {
     public static class Utilities
     {
-        public const string EngineBuildVersion = "0.0.0";
+        public const string EngineBuildVersion = "0.0.1";
 
         public const int NormalListCapacity = 128;
         public const int MoveListSize = 256;

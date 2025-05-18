@@ -242,7 +242,7 @@ public unsafe class Tree
             {
                 (NodeStateKind.Loss, _) => ScorePVWin,
                 (NodeStateKind.Draw, _) => 0.5f,
-                (NodeStateKind.Win, _) => -0.1f,
+                (NodeStateKind.Win, _) => ScorePVLoss,
                 _ => q
             };
         }

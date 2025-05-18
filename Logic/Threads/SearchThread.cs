@@ -27,12 +27,11 @@ namespace AwesomeOpossum.Logic.Threads
 
         public bool Searching;
         public bool Quit;
+        public bool StopSearching;
+        public bool IsDatagen;
         public readonly bool IsMain = false;
 
         public readonly Position RootPosition;
-
-        public List<RootMove> RootMoves = new List<RootMove>(20);
-        public Move CurrentMove => RootMoves[PVIndex].Move;
 
         public BucketCache[] CachedBuckets;
 
@@ -45,6 +44,8 @@ namespace AwesomeOpossum.Logic.Threads
         private Barrier _InitBarrier = new Barrier(2);
 
         public string FriendlyName => _SysThread.Name;
+        public void SetStop(bool flag = true) => StopSearching = flag;
+        public bool ShouldStop() => StopSearching;
 
         public SearchThread(int idx)
         {
@@ -105,7 +106,7 @@ namespace AwesomeOpossum.Logic.Threads
         /// Sets this thread's <see cref="Searching"/> variable to true, which will cause the thread in the IdleLoop to
         /// call the search function once it wakes up.
         /// </summary>
-        public void PrepareToSearch()
+        public void WakeUp()
         {
             Monitor.Enter(_Mutex);
             Searching = true;
@@ -188,7 +189,7 @@ namespace AwesomeOpossum.Logic.Threads
                 }
                 else
                 {
-                    Playout();
+                    Playout(ref AssocPool.SharedInfo);
                 }
             }
         }
@@ -203,20 +204,20 @@ namespace AwesomeOpossum.Logic.Threads
         /// </summary>
         public void MainThreadSearch()
         {
-            AssocPool.StartThreads();
-            this.Playout();
+            AssocPool.AwakenHelperThreads();
+            this.Playout(ref AssocPool.SharedInfo);
 
-            while (!AssocPool.StopThreads && AssocPool.SharedInfo.IsInfinite) { }
+            while (!ShouldStop() && AssocPool.SharedInfo.IsInfinite) { }
 
             //  When the main thread is done, prevent the other threads from searching any deeper
-            AssocPool.StopThreads = true;
+            AssocPool.StopAllThreads();
 
             //  Wait for the other threads to return
             AssocPool.WaitForSearchFinished();
 
             //  Search is finished, now give the UCI output.
             AssocPool.SharedInfo.OnSearchFinish?.Invoke(ref AssocPool.SharedInfo);
-            AssocPool.SharedInfo.TimeManager.ResetTimer();
+            TimeManager.ResetTimer();
 
             AssocPool.SharedInfo.SearchActive = false;
 
@@ -230,30 +231,40 @@ namespace AwesomeOpossum.Logic.Threads
         }
 
 
-        /// <summary>
-        /// Main deepening loop for threads. This is essentially the same as the old "StartSearching" method that was used.
-        /// </summary>
-        public void Playout()
+        public void Reset()
+        {
+            Nodes = PlayoutIteration = 0;
+            SelDepth = AverageDepth = 0;
+        }
+
+        public void ClearTree()
+        {
+            Tree.Clear();
+            Tree.PushRoot(RootPosition);
+        }
+
+
+        public void Playout(ref SearchInformation _info)
         {
             Bucketed768.ResetCaches(this);
 
-            SearchInformation info = AssocPool.SharedInfo;
+            SearchInformation info = _info;
             info.Position = RootPosition;
+            HardNodeLimit = info.HardNodeLimit;
 
-            Tree.Clear();
-            Tree.PushRoot(info.Position);
+            ClearTree();
 
             PlayoutIteration = 0;
 
             Stopwatch outputTimer = Stopwatch.StartNew();
 
-            while (!AssocPool.StopThreads)
+            while (!ShouldStop())
             {
                 uint usedDepth = 0;
                 float? scoreMaybe = Iteration.PerformOne(RootPosition, 0, ref usedDepth);
-                
+
                 if (scoreMaybe is null) //  Tree is full
-                    AssocPool.StopThreads = true;
+                    SetStop(true);
 
                 PlayoutIteration++;
                 Nodes += usedDepth;
@@ -266,13 +277,13 @@ namespace AwesomeOpossum.Logic.Threads
                     outputTimer.Restart();
 
                     if (CurrentDepth >= info.DepthLimit)
-                        AssocPool.StopThreads = true;
+                        SetStop(true);
                 }
 
                 if (Tree.RootNode.IsTerminal)
                 {
                     info.OnIterationUpdate?.Invoke(ref info);
-                    AssocPool.StopThreads = true;
+                    SetStop(true);
                 }
 
                 if (IsMain)
@@ -283,15 +294,44 @@ namespace AwesomeOpossum.Logic.Threads
                         outputTimer.Restart();
                     }
 
-                    if (PlayoutIteration % 2048 == 0 && AssocPool.GetNodeCount() >= info.NodeLimit)
-                        AssocPool.StopThreads = true;
-
-                    if (PlayoutIteration % 2048 == 0 && info.TimeManager.GetSearchTime() >= info.TimeManager.SoftTimeLimit)
-                        AssocPool.StopThreads = true;
+                    CheckLimits();
                 }
             }
 
         }
+
+        public void CheckLimits()
+        {
+            if (IsDatagen)
+            {
+                if (Nodes >= HardNodeLimit)
+                    SetStop();
+            }
+            else
+            {
+                if (NodeLimitReached())
+                    SetStop();
+
+                if (PlayoutIteration % 2048 == 0 && TimeManager.CheckHardTime())
+                    SetStop();
+            }
+        }
+
+
+        public bool NodeLimitReached()
+        {
+            if (SearchOptions.Threads == 1)
+            {
+                return Nodes >= HardNodeLimit;
+            }
+            else if (PlayoutIteration % 2048 == 0)
+            {
+                return AssocPool.GetNodeCount() >= HardNodeLimit;
+            }
+
+            return false;
+        }
+
 
         protected virtual void Dispose(bool disposing)
         {
@@ -307,7 +347,7 @@ namespace AwesomeOpossum.Logic.Threads
                 //  Set quit to True, and pulse the condition to allow the thread in IdleLoop to exit.
                 Quit = true;
 
-                PrepareToSearch();
+                WakeUp();
             }
 
             //  Destroy the underlying system thread

@@ -594,7 +594,7 @@ namespace AwesomeOpossum.Logic.Core
         /// Returns the Zobrist hash of the position after the move <paramref name="m"/> is made.
         /// <para></para>
         /// This is only for simple moves and captures: en passant and castling is not considered. 
-        /// This is only used for prefetching the <see cref="TTCluster"/>, and if the move actually 
+        /// This is only used for prefetching the <see cref="TTEntry"/>, and if the move actually 
         /// is an en passant or castle then the prefetch won't end up helping anyways.
         /// </summary>
         public ulong HashAfter(Move m)

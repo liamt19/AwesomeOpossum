@@ -1,113 +1,45 @@
 ﻿namespace AwesomeOpossum.Logic.Search
 {
-    public class TimeManager
+    public static class TimeManager
     {
+        public static int HardTimeLimit { get; private set; }
+        public static int SoftTimeLimit { get; private set; }
+        public static bool HasSoftTime => SoftTimeLimit > 0;
 
-        /// <summary>
-        /// Add this amount of milliseconds to the total search time when checking if the
-        /// search should stop, in case the move overhead is very low and the UCI expects
-        /// the search to stop very quickly after our time expires.
-        /// </summary>
-        public const int TimerBuffer = 50;
-
-        /// <summary>
-        /// If we got a "movetime" command, we use a smaller buffer to bring the time we actually search
-        /// much closer to the requested time.
-        /// </summary>
-        private const int MoveTimeBuffer = 5;
-
-        /// <summary>
-        /// Set to true if the go command has the "movetime" parameter.
-        /// </summary>
-        public bool HasMoveTime = false;
-
-        /// <summary>
-        /// The time in milliseconds that we were explicitly told to search for.
-        /// </summary>
-        public int MoveTime = 0;
-
-        /// <summary>
-        /// The time in milliseconds that the search should stop at.
-        /// </summary>
-        public int MaxSearchTime;
-
-
-        public double SoftTimeLimit = int.MaxValue;
-
-
-        public int MovesToGo = DefaultMovesToGo;
-
-        /// <summary>
-        /// Set to the value of winc/binc if one was provided during a UCI "go" command.
-        /// Only used
-        /// </summary>
-        public int PlayerIncrement;
-
-        /// <summary>
-        /// Set to the value of wtime/btime if one was provided during a UCI "go" command.
-        /// If the search time gets too close to this, it will stop prematurely so we don't lose on time.
-        /// </summary>
-        public int PlayerTime;
-
-        //  Side note: Having this be a Stopwatch rather than keeping track of time via DateTime.Now is annoying,
-        //  but DateTime.Now can have unacceptably poor resolution (on some machines, like windows 7/8) of
-        //  +- 15ms, which can have a big impact for short time controls and especially "movetime" uci commands.
-        //  https://learn.microsoft.com/en-us/dotnet/api/system.datetime?view=net-8.0&redirectedfrom=MSDN#datetime-resolution
         private static Stopwatch TotalSearchTime = new Stopwatch();
 
+        public static void StartTimer() => TotalSearchTime.Start();
+        public static void StopTimer() => TotalSearchTime.Stop();
+        public static void ResetTimer() => TotalSearchTime.Reset();
+        public static void RestartTimer() => TotalSearchTime.Restart();
+        public static double GetSearchTime() => TotalSearchTime.ElapsedMilliseconds;
 
-        public TimeManager()
+
+        public static void RemoveHardLimit() => HardTimeLimit = MaxSearchTime;
+        public static void SetHardLimit(int movetime)
         {
-            PlayerIncrement = 0;
-            PlayerTime = MaxSearchTime;
+            HardTimeLimit = movetime;
+            Assert(!HasSoftTime);
         }
 
-        public void StartTimer() => TotalSearchTime.Start();
+        public static void Reset()
+        {
+            HardTimeLimit = MaxSearchTime;
+            SoftTimeLimit = -1;
+        }
 
-        public void StopTimer() => TotalSearchTime.Stop();
-
-        public void ResetTimer() => TotalSearchTime.Reset();
-
-        public void RestartTimer() => TotalSearchTime.Restart();
-
-        /// <summary>
-        /// Returns the current search time in milliseconds.
-        /// </summary>
-        public double GetSearchTime() => TotalSearchTime.Elapsed.TotalMilliseconds;
-
-        /// <summary>
-        /// Returns true if we have searched for our maximum allotted time
-        /// </summary>
-        public bool CheckUp()
+        public static bool CheckHardTime()
         {
             double currentTime = GetSearchTime();
-
-            if (currentTime > (MaxSearchTime - (HasMoveTime ? MoveTimeBuffer : TimerBuffer)))
-            {
-                //  Stop if we are close to going over the max time
-                return true;
-            }
-
-            return false;
+            return (currentTime > (HardTimeLimit - MoveOverhead));
         }
 
-
-        /// <summary>
-        /// Sets the maximum search time for the player <paramref name="ToMove"/>, given the number of moves <paramref name="moveCount"/> made so far.
-        /// <para></para>
-        /// This currently prioritizes early game moves since each search is given a percentage of the player's remaining time,
-        /// which works well since there are more pieces and therefore more moves that need to be considered in the early/midgame.
-        /// </summary>
-        public void MakeMoveTime()
+        public static void UpdateTimeLimits(int playerTime, int inc)
         {
-            int newSearchTime = PlayerIncrement + Math.Max(PlayerTime / 2, PlayerTime / MovesToGo);
-
-            newSearchTime = Math.Min(newSearchTime, PlayerTime);
+            HardTimeLimit = Math.Min(playerTime, inc + (playerTime / 2));
 
             //  Values from Clarity (who took them from Stormphrax), then slightly adjusted
-            SoftTimeLimit = 0.65 * ((PlayerTime / MovesToGo) + (PlayerIncrement * 3 / 4));
-
-            MaxSearchTime = newSearchTime;
+            SoftTimeLimit = (int)(0.65 * ((playerTime / 20) + (inc * 3 / 4)));
         }
     }
 }

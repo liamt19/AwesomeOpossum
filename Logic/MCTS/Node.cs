@@ -66,10 +66,10 @@ public struct Node
         return (float)(((nq + oldQ) / (1.0 + oldV)) / Quantization);
     }
 
-    public static bool operator ==(Node l, Node r) => l.Equals(r);
-    public static bool operator !=(Node l, Node r) => !l.Equals(r);
+    public static bool operator ==(in Node l, in Node r) => l.Equals(r);
+    public static bool operator !=(in Node l, in Node r) => !l.Equals(r);
 
-    public static bool Equals(Node l, Node r) => l.Visits == r.Visits && l.FirstChild == r.FirstChild && l.Move == r.Move;
+    public bool Equals(in Node r) => Visits == r.Visits && FirstChild == r.FirstChild && Move == r.Move;
 
     public override string ToString() => $"{State}, {Move}={PolicyValue} V={Visits} C={NumChildren} @ {FirstChild}";
 }

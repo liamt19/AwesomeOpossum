@@ -508,10 +508,9 @@ namespace AwesomeOpossum.Logic.Util
             SearchThread thisThread = info.Position.Owner;
             var rootNode = thisThread.Tree.RootNode;
 
-            List<RootMove> rootMoves = thisThread.RootMoves;
-            int multiPV = Math.Min(MultiPV, rootMoves.Count);
+            int multiPV = Math.Min(MultiPV, rootNode.NumChildren);
 
-            double time = Math.Max(1, Math.Round(info.TimeManager.GetSearchTime()));
+            double time = Math.Max(1, Math.Round(TimeManager.GetSearchTime()));
             ulong nodes = thisThread.AssocPool.GetNodeCount();
 
             for (int i = 0; i < multiPV; i++)
@@ -595,12 +594,6 @@ namespace AwesomeOpossum.Logic.Util
             info.SearchActive = false;
 
             var bestThread = info.Position.Owner.AssocPool.GetBestThread();
-            if (bestThread.RootMoves.Count == 0)
-            {
-                Console.WriteLine("bestmove 0000");
-                return;
-            }
-
             Move bestThreadMove = bestThread.Tree.BestRootMove;
             if (bestThreadMove.IsNull())
             {

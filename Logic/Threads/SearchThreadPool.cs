@@ -29,12 +29,6 @@ namespace AwesomeOpossum.Logic.Threads
 
         public Tree SharedTree;
 
-        /// <summary>
-        /// Set to true by the main thread when we are nearing the maximum search time / maximum node count,
-        /// or when the UCI receives a "stop" command
-        /// </summary>
-        public volatile bool StopThreads;
-
         public Barrier Blocker;
 
         static SearchThreadPool()
@@ -102,7 +96,7 @@ namespace AwesomeOpossum.Logic.Threads
         {
             MainThread.WaitForThreadFinished();
 
-            StopThreads = false;
+            StartAllThreads();
             SharedInfo = rootInfo;          //  Initialize the shared SearchInformation
             SharedInfo.SearchActive = true; //  And mark this search as having started
 
@@ -119,24 +113,7 @@ namespace AwesomeOpossum.Logic.Threads
             {
                 var td = Threads[i];
 
-                td.Nodes = td.PlayoutIteration = 0;
-                td.SelDepth = td.AverageDepth = 0;
-
-                //  Each thread gets its own copy of each of the root position's "RootMoves" since the thread will be sorting these
-                //  and doing that simultaneously would cause data races
-                td.RootMoves = new List<RootMove>(size);
-                for (int j = 0; j < size; j++)
-                {
-                    td.RootMoves.Add(new RootMove(moves[j].Move));
-                }
-
-                if (setup.UCISearchMoves.Count != 0)
-                {
-                    //  If we got a "searchmoves ..." component, remove any moves not in that list.
-                    //  Note UCISearchMoves will only contain moves that are actually legal in the position.
-                    td.RootMoves = td.RootMoves.Where(x => setup.UCISearchMoves.Contains(x.Move)).ToList();
-                }
-
+                td.Reset();
                 td.RootPosition.LoadFromFEN(rootFEN);
 
                 foreach (var move in setup.SetupMoves)
@@ -145,8 +122,8 @@ namespace AwesomeOpossum.Logic.Threads
                 }
             }
 
-            SharedInfo.TimeManager.StartTimer();
-            MainThread.PrepareToSearch();
+            TimeManager.StartTimer();
+            MainThread.WakeUp();
         }
 
 
@@ -154,18 +131,8 @@ namespace AwesomeOpossum.Logic.Threads
 
         public SearchThread GetBestThread()
         {
-            SearchThread bestThread = MainThread;
-            for (int i = 1; i < ThreadCount; i++)
-            {
-                var thisScore = Threads[i].RootMoves[0].Score - bestThread.RootMoves[0].Score;
-
-                //  If a thread's score is higher than the previous best score,
-                //  and that thread's depth is equal to or higher than the previous, then make that the new best.
-                if (thisScore > 0 && (Threads[i].CurrentDepth >= bestThread.CurrentDepth))
-                    bestThread = Threads[i];
-            }
-
-            return bestThread;
+            //  TODO
+            return MainThread;
         }
 
 
@@ -173,20 +140,32 @@ namespace AwesomeOpossum.Logic.Threads
         /// Unblocks each thread waiting in IdleLoop by setting their <see cref="SearchThread.Searching"/> variable to true
         /// and signaling the condition variable.
         /// </summary>
-        public void StartThreads()
+        public void AwakenHelperThreads()
         {
             //  Skip Threads[0] because it will do this to itself after this method returns.
             for (int i = 1; i < ThreadCount; i++)
             {
-                Threads[i].PrepareToSearch();
+                Threads[i].WakeUp();
             }
         }
 
+        public void StopAllThreads()
+        {
+            for (int i = 1; i < ThreadCount; i++)
+                Threads[i].SetStop(true);
 
-        /// <summary>
-        /// Blocks the main thread of the pool until each of the other threads have finished searching and 
-        /// are blocked in IdleLoop.
-        /// </summary>
+            MainThread.SetStop(true);
+        }
+
+        public void StartAllThreads()
+        {
+            for (int i = 1; i < ThreadCount; i++)
+                Threads[i].SetStop(false);
+
+            MainThread.SetStop(false);
+        }
+
+
         public void WaitForSearchFinished()
         {
             //  Skip Threads[0] (the MainThread) since this method is only ever called when the MainThread is done.

@@ -52,10 +52,10 @@ namespace AwesomeOpossum
 
 
             Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e) {
-                if (!GlobalSearchPool.StopThreads)
+                if (!GlobalSearchPool.MainThread.ShouldStop())
                 {
                     //  If a search is ongoing, stop it instead of closing the console.
-                    GlobalSearchPool.StopThreads = true;
+                    GlobalSearchPool.StopAllThreads();
                     e.Cancel = true;
                 }
 
@@ -140,7 +140,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.StartsWithIgnoreCase("stop"))
                 {
-                    GlobalSearchPool.StopThreads = true;
+                    GlobalSearchPool.StopAllThreads();
                 }
                 else if (input.StartsWithIgnoreCase("load"))
                 {
@@ -406,14 +406,9 @@ namespace AwesomeOpossum
             p.Owner.AssocPool.Clear();
 
             info = new SearchInformation(p, MaxDepth);
-            info.TimeManager.MaxSearchTime = MaxSearchTime;
+            TimeManager.Reset();
 
-            bool makeTime = UCIClient.ParseGo(param, ref info, setup);
-            if (makeTime)
-            {
-                info.TimeManager.MakeMoveTime();
-            }
-
+            UCIClient.ParseGo(param, ref info, setup);
             GlobalSearchPool.StartSearch(p, ref info, setup);
         }
 
@@ -509,19 +504,6 @@ namespace AwesomeOpossum
                 SearchBench.Go(depth);
             }
         }
-
-
-        private static void DotTraceProfile(int depth = 24)
-        {
-            info.TimeManager.MaxSearchTime = 30000;
-            info.DepthLimit = depth;
-
-            GlobalSearchPool.StartSearch(p, ref info);
-            GlobalSearchPool.BlockCallerUntilFinished();
-
-            Environment.Exit(0);
-        }
-
     }
 
 }

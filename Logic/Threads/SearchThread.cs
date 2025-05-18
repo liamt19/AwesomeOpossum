@@ -21,7 +21,7 @@ namespace AwesomeOpossum.Logic.Threads
 
         public int PVIndex;
 
-        public uint CurrentDepth => (uint)((Nodes / PlayoutIteration) / PlayoutIteration);
+        public uint CurrentDepth => (uint)((Nodes - PlayoutIteration) / PlayoutIteration);
         public uint AverageDepth;
         public uint SelDepth;
 
@@ -248,6 +248,8 @@ namespace AwesomeOpossum.Logic.Threads
 
             PlayoutIteration = 0;
 
+            Stopwatch outputTimer = Stopwatch.StartNew();
+
             while (!AssocPool.StopThreads)
             {
                 uint usedDepth = 0;
@@ -256,14 +258,19 @@ namespace AwesomeOpossum.Logic.Threads
                 if (scoreMaybe is null) //  Tree is full
                     AssocPool.StopThreads = true;
 
+                PlayoutIteration++;
                 Nodes += usedDepth;
                 SelDepth = Math.Max(SelDepth, usedDepth - 1);
 
-                PlayoutIteration++;
+                if (CurrentDepth > AverageDepth)
+                {
+                    AverageDepth = CurrentDepth;
+                    info.OnIterationUpdate?.Invoke(ref info);
+                    outputTimer.Restart();
 
-                AverageDepth = Math.Max(AverageDepth, CurrentDepth);
-                if (CurrentDepth > info.DepthLimit)
-                    AssocPool.StopThreads = true;
+                    if (CurrentDepth >= info.DepthLimit)
+                        AssocPool.StopThreads = true;
+                }
 
                 if (Tree.RootNode.IsTerminal)
                 {
@@ -273,8 +280,11 @@ namespace AwesomeOpossum.Logic.Threads
 
                 if (IsMain)
                 {
-                    if (PlayoutIteration % 8192 == 0)
+                    if (PlayoutIteration % 8192 == 0 && outputTimer.Elapsed.TotalSeconds > 3)
+                    {
                         info.OnIterationUpdate?.Invoke(ref info);
+                        outputTimer.Restart();
+                    }
 
                     if (PlayoutIteration % 2048 == 0 && AssocPool.GetNodeCount() >= info.NodeLimit)
                         AssocPool.StopThreads = true;

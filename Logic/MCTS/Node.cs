@@ -21,6 +21,7 @@ public struct Node
     public Move Move;
 
     public bool IsTerminal => State.Kind != NodeStateKind.Unterminated;
+    public bool IsOngoing => State.Kind == NodeStateKind.Unterminated;
     public bool HasChildren => (NumChildren != 0);
     public bool IsExpanded => (IsTerminal || HasChildren);
     public bool IsValid => (this != default);

@@ -204,8 +204,6 @@ namespace AwesomeOpossum.Logic.Threads
         /// </summary>
         public void MainThreadSearch()
         {
-            TT.TTUpdate();  //  Age the TT
-
             AssocPool.StartThreads();
             this.Playout();
 

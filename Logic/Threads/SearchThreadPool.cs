@@ -242,6 +242,14 @@ namespace AwesomeOpossum.Logic.Threads
 
         }
 
+        public void ResizeHashes()
+        {
+            TTable.Initialize(Hash);
+
+            for (int i = 0; i < ThreadCount; i++)
+                Threads[i].Tree.Resize(Hash);
+        }
+
 
         /// <summary>
         /// Returns the total amount of nodes searched by all SearchThreads in the pool.

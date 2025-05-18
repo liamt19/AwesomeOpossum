@@ -311,7 +311,7 @@ namespace AwesomeOpossum.Logic.UCI
 
                         if (opt.Name == nameof(Hash))
                         {
-                            GlobalSearchPool.TTable.Initialize(SearchOptions.Hash);
+                            GlobalSearchPool.ResizeHashes();
                         }
                     }
                 }

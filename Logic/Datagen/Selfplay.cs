@@ -1,9 +1,6 @@
 ﻿
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 
-//#define DBG
-//#define WRITE_PGN
-
 using System.Runtime.InteropServices;
 
 using static AwesomeOpossum.Logic.Datagen.DatagenParameters;
@@ -20,8 +17,6 @@ namespace AwesomeOpossum.Logic.Datagen
         private static int Seed = Environment.TickCount;
         private static readonly ThreadLocal<Random> ThreadRNG = new(() => new Random(Interlocked.Increment(ref Seed)));
 
-
-
         public static void RunGames(ulong gamesToRun, int threadID, ulong softNodeLimit = SoftNodeLimit, ulong depthLimit = DepthLimit, bool dfrc = false)
         {
             SearchOptions.Hash = HashSize;
@@ -35,10 +30,14 @@ namespace AwesomeOpossum.Logic.Datagen
             ref Bitboard bb = ref pos.bb;
 
             string fName = $"{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.bin";
-            using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+            using var ostr = File.Open(fName, FileMode.Create, FileAccess.Write, FileShare.Read);
             using var outWriter = new BinaryWriter(ostr);
 
+            Span<SearchData> sd = stackalloc SearchData[1024];
+            ScoredMove* legalMoves = stackalloc ScoredMove[MoveListSize];
+
             MontyPack pack = new();
+            pack.moves = sd;
 
             ulong totalPositions = 0;
             ulong totalDepths = 0;
@@ -49,23 +48,25 @@ namespace AwesomeOpossum.Logic.Datagen
             for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
             {
                 GetStartPos(thread, ref pack, ref prelimInfo);
+                sd = new SearchData[1024];
+                int moveNum = 0;
+                NodeStateKind playoutState = NodeStateKind.Unterminated;
 
-                GameResult result = GameResult.None;
-                int winPlies = 0, drawPlies = 0, lossPlies = 0;
-
-                while (result == GameResult.None)
+                while (playoutState == NodeStateKind.Unterminated)
                 {
-                    int nLegalMoves = SetupThread(pos, thread);
+                    thread.Reset();
+                    thread.SetStop(false);
+
+                    int nLegalMoves = pos.GenLegal(legalMoves);
                     if (nLegalMoves == 0)
                     {
-                        result = pos.ToMove == White ? GameResult.BlackWin : GameResult.WhiteWin;
+                        playoutState = pos.PlayoutState().Kind;
                         break;
                     }
 
                     thread.Playout(ref info);
 
                     var (idx, move, scoreSig) = tree.GetBestAction(0);
-                    bool isMate = scoreSig > 1.0f || scoreSig < 0.0f;
                     var score = (int)InvSigmoid(scoreSig);
 
 #if DBG_PRINT
@@ -73,59 +74,45 @@ namespace AwesomeOpossum.Logic.Datagen
 #endif
                     totalDepths += (ulong)thread.AverageDepth;
 
-                    if (isMate)
+                    sd[moveNum].best_move = ConvertToMontyMoveFormatBecauseOfCourseItIsDifferent(move, pos);
+                    sd[moveNum].score = scoreSig;
+                    sd[moveNum].NumChildren = nLegalMoves;
+                    if (nLegalMoves != 0)
                     {
-                        result = score > 0 ? GameResult.WhiteWin : GameResult.BlackWin;
-                        break;
+                        var children = tree.ChildrenOf(rootNode);
+                        for (int i = 0; i < rootNode.NumChildren; i++)
+                            sd[moveNum].visit_distribution[i] = children[i].Visits;
                     }
+
+                    pack.Push(sd[moveNum]);
 
                     pos.MakeMove(move);
+                    moveNum++;
 
-                    if (score >= AdjudicateScore)
-                    {
-                        winPlies++;
-                        lossPlies = 0;
-                        drawPlies = 0;
-                    }
-                    else if (score <= -AdjudicateScore)
-                    {
-                        winPlies = 0;
-                        lossPlies++;
-                        drawPlies = 0;
-                    }
-                    else
-                    {
-                        winPlies = 0;
-                        lossPlies = 0;
-                        drawPlies = 0;
-                    }
+                    playoutState = pos.PlayoutState().Kind;
 
-                    if (winPlies >= AdjudicatePlies)
+                    if (pack.IsAtMoveLimit)
                     {
-                        result = GameResult.BlackWin;
+                        playoutState = NodeStateKind.Draw;
+                        break;
                     }
-                    else if (lossPlies >= AdjudicatePlies)
-                    {
-                        result = GameResult.WhiteWin;
-                    }
-                    else if (drawPlies >= 10)
-                    {
-                        result = GameResult.Draw;
-                    }
-
-                    pack.Push(move, (short)score);
-
-                    if (pack.IsAtMoveLimit())
-                        result = GameResult.Draw;
                 }
+
+                float result = playoutState switch
+                {
+                    NodeStateKind.Loss => pos.ToMove == White ? 0f : 1f,
+                    NodeStateKind.Win => pos.ToMove == White ? 1f : 0f,
+                    _ => 0.5f,
+                };
 
 #if DBG_PRINT
                 debugStreamWriter.WriteLine($"done, {result}");
 #endif
 
-                totalPositions += (uint)pack.MoveIndex;
+                totalPositions += (uint)pack.NumEntries;
 
                 ProgressBroker.ReportProgress(threadID, gameNum, totalPositions, totalDepths);
+
                 pack.AddResultsAndWrite(result, outWriter);
             }
         }
@@ -140,7 +127,6 @@ namespace AwesomeOpossum.Logic.Datagen
             ScoredMove* legalMoves = stackalloc ScoredMove[MoveListSize];
 
             pack.Clear();
-            Span<Move> randomMoves = stackalloc Move[16];
 
             while (true)
             {
@@ -158,7 +144,6 @@ namespace AwesomeOpossum.Logic.Datagen
                         goto Retry;
 
                     Move rMove = legalMoves[rand.Next(0, legals)].Move;
-                    randomMoves[i] = rMove;
                     pos.MakeMove(rMove);
                 }
 
@@ -171,8 +156,7 @@ namespace AwesomeOpossum.Logic.Datagen
                 if (Math.Abs(score) >= MaxOpeningScore)
                     continue;
 
-                for (int i = 0; i < randMoveCount; i++)
-                    pack.PushUnscored(randomMoves[i]);
+                pack.startpos = MontyPosition.FromPosition(pos);
 
                 thread.ClearTree();
                 return;
@@ -189,6 +173,31 @@ namespace AwesomeOpossum.Logic.Datagen
             int size = pos.GenLegal(list);
 
             return size;
+        }
+
+        private static Move ConvertToMontyMoveFormatBecauseOfCourseItIsDifferent(Move m, Position pos)
+        {
+            int f = 0;
+
+            var (src, dst) = m.Unpack();
+
+            if ((src ^ dst) == 16 && pos.bb.GetPieceAtIndex(src) == Pawn)
+                f = 1;
+            else if (m.IsEnPassant)
+                f = 5;
+            else if (m.IsCastle)
+            {
+                f = (dst > src) ? 2 : 3;
+                dst = m.CastlingKingSquare();
+            }
+
+            if (pos.bb.GetPieceAtIndex(dst) != None)
+                f |= 4;
+
+            if (m.IsPromotion)
+                f |= (0b0111 + m.PromotionTo);
+
+            return new Move((ushort)((src << 10) | (dst << 4) | f));
         }
     }
 }

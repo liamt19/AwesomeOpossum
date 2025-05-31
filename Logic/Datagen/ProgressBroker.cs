@@ -32,7 +32,6 @@ namespace AwesomeOpossum.Logic.Datagen
                 for (int y = 0; y < Console.WindowHeight - top; y++)
                     Console.Write(new string(' ', Console.WindowWidth));
                 Console.SetCursorPosition(0, top);
-                //Console.CursorVisible = true;
 
                 ulong totalGames = 0;
                 double totalNPS = 0;
@@ -45,14 +44,10 @@ namespace AwesomeOpossum.Logic.Datagen
                     var positions = ThreadPositionTotals[id];
                     var nps = ThreadNPS[id];
 
-                    Console.WriteLine($"Thread {id,3}: {games,12} {positions,15:N0} {nps,12:N2}");
-
                     totalGames += games;
                     totalPositions += positions;
                     totalNPS += nps;
                 }
-
-                Console.WriteLine($"           ------------------------------------------");
                 Console.WriteLine($"            {totalGames,12} {totalPositions,15:N0} {totalNPS,12:N2}");
 
                 Thread.Sleep(250);

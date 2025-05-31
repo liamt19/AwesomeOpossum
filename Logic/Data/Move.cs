@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace AwesomeOpossum.Logic.Data
 {
-    public unsafe readonly struct Move(int from, int to, int flags = 0)
+    public unsafe readonly struct Move(ushort u)
     {
         public static readonly Move Null = new Move();
 
@@ -16,8 +16,9 @@ namespace AwesomeOpossum.Logic.Data
         //  2 bits for the EnPassant/Castle/Promotion flags
         //  2 bits for PromotionTo, which defaults to a knight (1), so the "Promotion" flag MUST be looked at before "PromotionTo" is.
         //  (Otherwise every move would show up as a promotion to a knight, woohoo for horses!).
-        private readonly ushort _data = (ushort)(to | (from << 6) | flags);
+        private readonly ushort _data = u;
 
+        public Move(int from, int to, int flags = 0) : this((ushort)(to | (from << 6) | flags)) { }
 
         [MethodImpl(Inline)] 
         public ushort GetData() => _data;
@@ -44,6 +45,7 @@ namespace AwesomeOpossum.Logic.Data
 
         public readonly int To   => (_data >> 0) & 0x3F;
         public readonly int From => (_data >> 6) & 0x3F;
+        public (int from, int to) Unpack() => (From, To);
 
         public readonly int MoveMask => (_data & Mask_ToFrom);
 

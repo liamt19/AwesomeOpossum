@@ -190,7 +190,6 @@ unsafe ref struct MontyPack
             br.Write(rights.rook_files[i]);
 
         br.Write((byte)(((int)result) * 2));
-        br.Flush();
         var moveSpan = moves[..NumEntries];
         foreach (var sd in moveSpan)
         {
@@ -200,7 +199,6 @@ unsafe ref struct MontyPack
 
             br.Write(sd.best_move.GetData());
             br.Write(s);
-            br.Flush();
             if (sd.NumChildren == 0)
                 continue;
 
@@ -218,6 +216,7 @@ unsafe ref struct MontyPack
         }
 
         br.Write((ushort)0);
+        br.Flush();
     }
 
 

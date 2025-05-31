@@ -4,10 +4,10 @@ namespace AwesomeOpossum.Logic.Datagen
 {
     public static class ProgressBroker
     {
-        private static readonly ConcurrentDictionary<int, ulong> ThreadGameTotals = new ConcurrentDictionary<int, ulong>();
-        private static readonly ConcurrentDictionary<int, ulong> ThreadPositionTotals = new ConcurrentDictionary<int, ulong>();
-        private static readonly ConcurrentDictionary<int, double> ThreadNPS = new ConcurrentDictionary<int, double>();
-        private static readonly CancellationTokenSource TokenSource = new CancellationTokenSource();
+        private static readonly ConcurrentDictionary<int, ulong> ThreadGameTotals = new();
+        private static readonly ConcurrentDictionary<int, ulong> ThreadPositionTotals = new();
+        private static readonly ConcurrentDictionary<int, ulong> ThreadNodeTotals = new();
+        private static readonly CancellationTokenSource TokenSource = new();
 
         public static void StartMonitoring()
         {
@@ -22,7 +22,7 @@ namespace AwesomeOpossum.Logic.Datagen
         private static void MonitorProgress(CancellationToken token)
         {
             Console.WriteLine("\n");
-            Console.WriteLine("                   games       positions      pos/sec");
+            Console.WriteLine("   games     positions          nodes");
             (int _, int top) = Console.GetCursorPosition();
 
             while (!token.IsCancellationRequested)
@@ -34,31 +34,27 @@ namespace AwesomeOpossum.Logic.Datagen
                 Console.SetCursorPosition(0, top);
 
                 ulong totalGames = 0;
-                double totalNPS = 0;
                 ulong totalPositions = 0;
+                ulong totalNodes = 0;
 
                 foreach (var kvp in ThreadGameTotals)
                 {
                     int id = kvp.Key;
-                    var games = kvp.Value;
-                    var positions = ThreadPositionTotals[id];
-                    var nps = ThreadNPS[id];
-
-                    totalGames += games;
-                    totalPositions += positions;
-                    totalNPS += nps;
+                    totalGames += kvp.Value;
+                    totalPositions += ThreadPositionTotals[id];
+                    totalNodes += ThreadNodeTotals[id];
                 }
-                Console.WriteLine($"            {totalGames,12} {totalPositions,15:N0} {totalNPS,12:N2}");
+                Console.WriteLine($"{totalGames,8} {totalPositions,13:N0} {totalNodes,14}");
 
                 Thread.Sleep(250);
             }
         }
 
-        public static void ReportProgress(int threadId, ulong gameNum, ulong totalPositions, double nps)
+        public static void ReportProgress(int threadId, ulong gameNum, ulong totalPositions, ulong totalNodes)
         {
             ThreadGameTotals[threadId] = gameNum;
             ThreadPositionTotals[threadId] = totalPositions;
-            ThreadNPS[threadId] = nps;
+            ThreadNodeTotals[threadId] = totalNodes;
         }
     }
 }

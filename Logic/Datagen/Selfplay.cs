@@ -30,7 +30,7 @@ namespace AwesomeOpossum.Logic.Datagen
             ref Bitboard bb = ref pos.bb;
 
             string fName = $"{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.bin";
-            using var ostr = File.Open(fName, FileMode.Create, FileAccess.Write, FileShare.Read);
+            using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
             using var outWriter = new BinaryWriter(ostr);
 
             Span<SearchData> sd = stackalloc SearchData[1024];
@@ -40,7 +40,7 @@ namespace AwesomeOpossum.Logic.Datagen
             pack.moves = sd;
 
             ulong totalPositions = 0;
-            ulong totalDepths = 0;
+            ulong totalNodes = 0;
 
             var info = SearchInformation.DatagenStandard(pos, softNodeLimit, (int)depthLimit);
             var prelimInfo = SearchInformation.DatagenPrelim(pos, softNodeLimit, (int)depthLimit);
@@ -48,7 +48,8 @@ namespace AwesomeOpossum.Logic.Datagen
             for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
             {
                 GetStartPos(thread, ref pack, ref prelimInfo);
-                sd = new SearchData[1024];
+                //sd.Clear();   //  Hopefully this is fine to skip
+
                 int moveNum = 0;
                 NodeStateKind playoutState = NodeStateKind.Unterminated;
 
@@ -72,18 +73,16 @@ namespace AwesomeOpossum.Logic.Datagen
 #if DBG_PRINT
                     debugStreamWriter.WriteLine($"{pos.GetSFen()}\t{move} {score}\t");
 #endif
-                    totalDepths += (ulong)thread.AverageDepth;
+                    totalNodes += (ulong)nLegalMoves;
 
                     sd[moveNum].best_move = ConvertToMontyMoveFormatBecauseOfCourseItIsDifferent(move, pos);
                     sd[moveNum].score = scoreSig;
                     sd[moveNum].NumChildren = nLegalMoves;
-                    if (nLegalMoves != 0)
-                    {
-                        var children = tree.ChildrenOf(rootNode);
-                        for (int i = 0; i < rootNode.NumChildren; i++)
-                            sd[moveNum].visit_distribution[i] = children[i].Visits;
-                    }
 
+                    var children = tree.ChildrenOf(rootNode);
+                    for (int i = 0; i < rootNode.NumChildren; i++)
+                        sd[moveNum].visit_distribution[i] = children[i].Visits;
+                    
                     pack.Push(sd[moveNum]);
 
                     pos.MakeMove(move);
@@ -111,8 +110,7 @@ namespace AwesomeOpossum.Logic.Datagen
 
                 totalPositions += (uint)pack.NumEntries;
 
-                ProgressBroker.ReportProgress(threadID, gameNum, totalPositions, totalDepths);
-
+                ProgressBroker.ReportProgress(threadID, gameNum, totalPositions, totalNodes);
                 pack.AddResultsAndWrite(result, outWriter);
             }
         }

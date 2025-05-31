@@ -79,6 +79,9 @@ namespace AwesomeOpossum.Logic.Core
 
         [MethodImpl(Inline)]
         private bool HasCastlingRook(ulong ourOcc, CastlingStatus cr) => (bb.Pieces[Rook] & SquareBB[CastlingRookSquares[(int)cr]] & ourOcc) != 0;
+        
+        [MethodImpl(Inline)] 
+        public int CastlingRookSquare(CastlingStatus cr) => CastlingRookSquares[(int)cr];
 
         [MethodImpl(Inline)]
         public bool HasNonPawnMaterial(int pc) => (((bb.Occupancy ^ bb.Pieces[Pawn] ^ bb.Pieces[King]) & bb.Colors[pc]) != 0);
@@ -245,7 +248,7 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                //NNUE.MakeMove(this, move);
+                NNUE.MakeMove(this, move);
             }
 
             Hashes.Add(Hash);
@@ -458,46 +461,6 @@ namespace AwesomeOpossum.Logic.Core
             ToMove = Not(ToMove);
         }
 
-
-        /// <summary>
-        /// Performs a null move, which only updates the EnPassantTarget (since it is always reset to 64 when a move is made) 
-        /// and position hash accordingly.
-        /// </summary>
-        public void MakeNullMove()
-        {
-            //  Copy everything except the pointer to the accumulator, which should never change.
-            Unsafe.CopyBlock(NextState, State, (uint)StateInfo.StateCopySize);
-
-            Hashes.Add(Hash);
-            State++;
-
-            if (State->EPSquare != EPNone)
-            {
-                //  Set EnPassantTarget to 64 now.
-                //  If we are capturing en passant, move.EnPassant is true. In any case it should be reset every move.
-                State->Hash.ZobristEnPassant(GetIndexFile(State->EPSquare));
-                State->EPSquare = EPNone;
-            }
-
-            State->Hash.ZobristChangeToMove();
-            ToMove = Not(ToMove);
-            State->HalfmoveClock++;
-            State->PliesFromNull = 0;
-
-            SetCheckInfo();
-        }
-
-        /// <summary>
-        /// Undoes a null move, which returns EnPassantTarget and the hash to their previous values.
-        /// </summary>
-        public void UnmakeNullMove()
-        {
-            State--;
-            Hashes.RemoveAt(Hashes.Count - 1);
-
-            ToMove = Not(ToMove);
-        }
-
         /// <summary>
         /// Moves the king and rook for castle moves, and updates the position hash accordingly.
         /// Adapted from https://github.com/official-stockfish/Stockfish/blob/632f1c21cd271e7c4c242fdafa328a55ec63b9cb/src/position.cpp#L931
@@ -533,10 +496,6 @@ namespace AwesomeOpossum.Logic.Core
                 UpdateHash(ourColor, Rook, rto);
             }
         }
-
-
-
-
 
 
         [MethodImpl(Inline)]

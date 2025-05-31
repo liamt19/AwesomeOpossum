@@ -225,8 +225,8 @@ namespace AwesomeOpossum.Logic.NN
         public static int GetEvaluation(Position pos, int outputBucket)
         {
             ref Accumulator accumulator = ref *pos.State->Accumulator;
-            //Bucketed768.ProcessUpdates(pos);
-            Bucketed768.RefreshAccumulator(pos);
+            Bucketed768.ProcessUpdates(pos);
+            //Bucketed768.RefreshAccumulator(pos);
 
             Vector256<short> maxVec = Vector256.Create((short)QA);
             Vector256<short> zeroVec = Vector256<short>.Zero;

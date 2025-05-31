@@ -13,7 +13,7 @@ using static AwesomeOpossum.Logic.NN.FunUnrollThings;
 
 namespace AwesomeOpossum.Logic.NN
 {
-    public static unsafe partial class Bucketed768
+    public static unsafe partial class ValueNetwork
     {
         public static string NetworkName
         {
@@ -32,6 +32,7 @@ namespace AwesomeOpossum.Logic.NN
         public const int L1_SIZE = 256;
         public const int OUTPUT_BUCKETS = 8;
 
+        private const int BUCKET_DIV = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
         private const int QA = 255;
         private const int QB = 64;
         public const int OUTPUT_SCALE = 400;
@@ -67,7 +68,7 @@ namespace AwesomeOpossum.Logic.NN
 #endif
 
 
-        static Bucketed768()
+        static ValueNetwork()
         {
             Net = new NetContainer<short, short>();
 
@@ -211,22 +212,17 @@ namespace AwesomeOpossum.Logic.NN
         }
 
 
-        public static int GetEvaluation(Position pos)
+        public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
+        public static int Evaluate(Position pos, int outputBucket)
         {
-            int occ = (int)popcount(pos.bb.Occupancy);
-            int outputBucket = (occ - 2) / ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-
-            var v = GetEvaluation(pos, outputBucket);
-
-            return v;
+            int ev = GetEvaluation(pos, outputBucket);
+            return int.Clamp(ev, ScoreTTLoss + 1, ScoreTTWin - 1);
         }
 
-
-        public static int GetEvaluation(Position pos, int outputBucket)
+        private static int GetEvaluation(Position pos, int outputBucket)
         {
             ref Accumulator accumulator = ref *pos.State->Accumulator;
-            Bucketed768.ProcessUpdates(pos);
-            //Bucketed768.RefreshAccumulator(pos);
+            ValueNetwork.ProcessUpdates(pos);
 
             Vector256<short> maxVec = Vector256.Create((short)QA);
             Vector256<short> zeroVec = Vector256<short>.Zero;

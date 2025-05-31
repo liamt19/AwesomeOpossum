@@ -160,7 +160,7 @@ namespace AwesomeOpossum.Logic.UCI
                 }
                 else if (cmd == "eval")
                 {
-                    Console.WriteLine($"{NNUE.GetEvaluation(pos)}");
+                    Console.WriteLine($"{ValueNetwork.Evaluate(pos)}");
                 }
             }
         }

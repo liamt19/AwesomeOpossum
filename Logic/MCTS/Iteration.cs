@@ -94,7 +94,7 @@ public static unsafe class Iteration
         SearchThread thisThread = pos.Owner;
         ref var node = ref thisThread.Tree[nodeIdx];
 
-        float f = NNUE.GetEvaluation(pos);
+        float f = ValueNetwork.Evaluate(pos);
         float wdl = 1.0f / (1.0f + float.Exp(-f / 400.0f));
 
         return wdl;

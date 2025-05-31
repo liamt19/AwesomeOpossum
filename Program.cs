@@ -107,7 +107,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.EqualsIgnoreCase("eval"))
                 {
-                    Log($"Bucketed768 Eval: {NNUE.GetEvaluation(p)}");
+                    Log($"Bucketed768 Eval: {ValueNetwork.Evaluate(p)}");
                 }
                 else if (input.EqualsIgnoreCase("eval all"))
                 {
@@ -197,7 +197,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.StartsWithIgnoreCase("activations"))
                 {
-                    Bucketed768.PrintActivationStats();
+                    ValueNetwork.PrintActivationStats();
                 }
                 else
                 {
@@ -249,7 +249,7 @@ namespace AwesomeOpossum
 
         private static void HandleEvalAllCommand()
         {
-            Log($"Static evaluation ({ColorToString(p.ToMove)}'s perspective): {NNUE.GetEvaluation(p)}");
+            Log($"Static evaluation ({ColorToString(p.ToMove)}'s perspective): {ValueNetwork.Evaluate(p)}");
             Log($"\r\nMove evaluations ({ColorToString(p.ToMove)}'s perspective):");
 
             ScoredMove* list = stackalloc ScoredMove[MoveListSize];
@@ -260,7 +260,7 @@ namespace AwesomeOpossum
             {
                 Move m = list[i].Move;
                 p.MakeMove(m);
-                scoreList.Add((m, -NNUE.GetEvaluation(p)));
+                scoreList.Add((m, -ValueNetwork.Evaluate(p)));
                 p.UnmakeMove(m);
             }
 

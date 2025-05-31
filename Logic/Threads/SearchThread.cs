@@ -84,7 +84,7 @@ namespace AwesomeOpossum.Logic.Threads
         {
             Quit = false;
 
-            const int CacheSize = Bucketed768.INPUT_BUCKETS * 2;
+            const int CacheSize = ValueNetwork.INPUT_BUCKETS * 2;
             CachedBuckets = new BucketCache[CacheSize];
             for (int i = 0; i < CacheSize; i++)
             {
@@ -246,7 +246,7 @@ namespace AwesomeOpossum.Logic.Threads
 
         public void Playout(ref SearchInformation _info)
         {
-            Bucketed768.ResetCaches(this);
+            ValueNetwork.ResetCaches(this);
 
             SearchInformation info = _info;
             info.Position = RootPosition;

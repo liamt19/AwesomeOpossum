@@ -2,7 +2,7 @@
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 #pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 
-using static AwesomeOpossum.Logic.NN.Bucketed768;
+using static AwesomeOpossum.Logic.NN.ValueNetwork;
 
 namespace AwesomeOpossum.Logic.NN
 {

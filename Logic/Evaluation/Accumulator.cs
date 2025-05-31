@@ -9,7 +9,7 @@ namespace AwesomeOpossum.Logic.NN
     /// </summary>
     public unsafe struct Accumulator
     {
-        public const int ByteSize = Bucketed768.L1_SIZE * sizeof(short);
+        public const int ByteSize = ValueNetwork.L1_SIZE * sizeof(short);
 
         public readonly short* White;
         public readonly short* Black;
@@ -20,8 +20,8 @@ namespace AwesomeOpossum.Logic.NN
 
         public Accumulator()
         {
-            White = AlignedAllocZeroed<short>(Bucketed768.L1_SIZE);
-            Black = AlignedAllocZeroed<short>(Bucketed768.L1_SIZE);
+            White = AlignedAllocZeroed<short>(ValueNetwork.L1_SIZE);
+            Black = AlignedAllocZeroed<short>(ValueNetwork.L1_SIZE);
 
             NeedsRefresh[Color.White] = NeedsRefresh[Color.Black] = true;
             Computed[Color.White] = Computed[Color.Black] = false;

@@ -248,7 +248,7 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                NNUE.MakeMove(this, move);
+                ValueNetwork.MakeMove(this, move);
             }
 
             Hashes.Add(Hash);

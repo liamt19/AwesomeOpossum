@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using AwesomeOpossum.Logic.MCTS;
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum.Logic.Core
@@ -26,6 +26,7 @@ namespace AwesomeOpossum.Logic.Core
         public ulong PawnHash => State->PawnHash;
         public ulong NonPawnHash(int pc) => State->NonPawnHash[pc];
         public int CapturedPiece => State->CapturedPiece;
+        public int KingSquare(int pc) => State->KingSquares[pc];
 
         /// <summary>
         /// The number of <see cref="StateInfo"/> items that memory will be allocated for within the StateStack, which is 256 KB.
@@ -45,6 +46,7 @@ namespace AwesomeOpossum.Logic.Core
 
         private readonly Accumulator* _accumulatorBlock;
 
+        public readonly PolicyAccumulator PolicyAccumulator;
 
         /// <summary>
         /// The SearchThread that owns this Position instance.
@@ -129,7 +131,8 @@ namespace AwesomeOpossum.Logic.Core
             this.UpdateNN = createAccumulators;
             this.Owner = owner;
 
-            this.bb = new Bitboard();
+            this.bb = new();
+            this.PolicyAccumulator = new();
 
             Hashes = new List<ulong>(1024);
             StartingState = AlignedAllocZeroed<StateInfo>(StateStackSize);
@@ -180,6 +183,8 @@ namespace AwesomeOpossum.Logic.Core
             }
 
             NativeMemory.AlignedFree((void*)StartingState);
+
+            PolicyAccumulator.Dispose();
         }
 
         /// <summary>
@@ -248,7 +253,7 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                ValueNetwork.MakeMove(this, move);
+                //ValueNetwork.MakeMove(this, move);
             }
 
             Hashes.Add(Hash);
@@ -1087,7 +1092,8 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                NNUE.RefreshAccumulator(this);
+                ValueNetwork.RefreshAccumulator(this);
+                PolicyNetwork.RefreshPolicyAccumulator(this);
             }
 
             return true;

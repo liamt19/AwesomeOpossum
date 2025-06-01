@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Xml.Linq;
 using AwesomeOpossum.Logic.MCTS;
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 
 namespace AwesomeOpossum.Logic.Threads
 {
@@ -87,9 +87,7 @@ namespace AwesomeOpossum.Logic.Threads
             const int CacheSize = ValueNetwork.INPUT_BUCKETS * 2;
             CachedBuckets = new BucketCache[CacheSize];
             for (int i = 0; i < CacheSize; i++)
-            {
-                CachedBuckets[i] = new BucketCache();
-            }
+                CachedBuckets[i] = new();
 
             _SysThread.Name = "SearchThread " + ThreadIdx + ", ID " + Environment.CurrentManagedThreadId;
             if (IsMain)

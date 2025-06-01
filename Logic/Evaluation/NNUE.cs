@@ -7,32 +7,14 @@ using System.Runtime.Intrinsics.X86;
 
 using AwesomeOpossum.Properties;
 
-namespace AwesomeOpossum.Logic.NN
+namespace AwesomeOpossum.Logic.Evaluation
 {
     public static unsafe class NNUE
     {
-        public const NetworkArchitecture NetArch = NetworkArchitecture.Bucketed768;
         public static readonly bool UseAvx = Avx2.IsSupported;
         public static readonly bool UseSSE = Sse3.IsSupported;
         public static readonly bool UseARM = AdvSimd.IsSupported;
         public static bool UseFallback => !(UseAvx || UseSSE || UseARM);
-
-        [MethodImpl(Inline)]
-        public static void RefreshAccumulator(Position pos)
-        {
-            ValueNetwork.RefreshAccumulator(pos);
-        }
-
-
-        /// <summary>
-        /// Calls the Initialize method for the selected architecture.
-        /// <br></br>
-        /// Call <see cref="RefreshAccumulator"/> for any existing positions, since their accumulators will no longer be computed!
-        /// </summary>
-        public static void LoadNewNetwork(string networkToLoad)
-        {
-            ValueNetwork.Initialize(networkToLoad, exitIfFail: false);
-        }
 
 
         /// <summary>
@@ -47,9 +29,6 @@ namespace AwesomeOpossum.Logic.NN
                 return File.OpenRead(networkToLoad);
             }
 
-            //  Try to load the default network
-            networkToLoad = ValueNetwork.NetworkName;
-
             try
             {
                 Assembly asm = Assembly.GetExecutingAssembly();
@@ -59,7 +38,7 @@ namespace AwesomeOpossum.Logic.NN
                     if (res.ToLower().Contains("properties"))
                         continue;
 
-                    if (!res.EndsWith(".dll") && !res.EndsWith(".so") && !res.Contains("HorsieBindings"))
+                    if (!res.EndsWith(".dll") && !res.EndsWith(".so") && !res.Contains("HorsieBindings") && res.Contains(networkToLoad))
                     {
                         Stream stream = asm.GetManifestResourceStream(res);
                         if (stream != null)
@@ -133,7 +112,7 @@ namespace AwesomeOpossum.Logic.NN
                     {
                         bb.RemovePiece(idx, pc, pt);
 
-                        RefreshAccumulator(pos);
+                        ValueNetwork.RefreshAccumulator(pos);
                         int eval = ValueNetwork.Evaluate(pos);
                         v = baseEval - eval;
 
@@ -150,7 +129,7 @@ namespace AwesomeOpossum.Logic.NN
                 Log(new string(board[row]));
             }
 
-            RefreshAccumulator(pos);
+            ValueNetwork.RefreshAccumulator(pos);
             Log("Buckets:\n");
             for (int b = 0; b < ValueNetwork.OUTPUT_BUCKETS; b++)
             {
@@ -175,7 +154,7 @@ namespace AwesomeOpossum.Logic.NN
 
             //  White king on A1, black king on H8
             Position pos = new Position("7k/8/8/8/8/8/8/K7 w - - 0 1", true, owner: GlobalSearchPool.MainThread);
-            RefreshAccumulator(pos);
+            ValueNetwork.RefreshAccumulator(pos);
             int baseEval = ValueNetwork.Evaluate(pos);
 
             Log($"\nNNUE evaluation: {baseEval}\n");
@@ -193,7 +172,7 @@ namespace AwesomeOpossum.Logic.NN
                 }
 
                 bb.AddPiece(i, pieceColor, pieceType);
-                RefreshAccumulator(pos);
+                ValueNetwork.RefreshAccumulator(pos);
                 int eval = ValueNetwork.Evaluate(pos);
                 bb.RemovePiece(i, pieceColor, pieceType);
 

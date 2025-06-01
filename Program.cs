@@ -3,7 +3,7 @@ using System.Text;
 
 using AwesomeOpossum.Logic.Datagen;
 using AwesomeOpossum.Logic.MCTS;
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum
@@ -107,7 +107,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.EqualsIgnoreCase("eval"))
                 {
-                    Log($"Bucketed768 Eval: {ValueNetwork.Evaluate(p)}");
+                    Log($"Value: {ValueNetwork.Evaluate(p)}");
                 }
                 else if (input.EqualsIgnoreCase("eval all"))
                 {
@@ -277,6 +277,7 @@ namespace AwesomeOpossum
             
             List<(Move mv, float policy, float raw)> scoreList = new();
 
+            PolicyNetwork.RefreshPolicyAccumulator(p);
             float maxScore = float.MinValue;
             for (uint i = 0; i < count; i++)
             {
@@ -323,8 +324,8 @@ namespace AwesomeOpossum
 
             if (File.Exists(input))
             {
-                NNUE.LoadNewNetwork(input);
-                NNUE.RefreshAccumulator(p);
+                ValueNetwork.Initialize(input, exitIfFail: false);
+                ValueNetwork.RefreshAccumulator(p);
             }
             else
             {

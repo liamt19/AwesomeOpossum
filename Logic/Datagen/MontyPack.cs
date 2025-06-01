@@ -60,23 +60,14 @@ public unsafe struct MontyCastling
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public unsafe struct MontyCompressedPosition
+public unsafe struct MontyCompressedPosition(byte stm, byte enp_sq, byte rights, byte halfm, ushort fullm)
 {
     public fixed ulong bbs[4];
-    public byte stm;
-    public byte enp_sq;
-    public byte rights;
-    public byte halfm;
-    public ushort fullm;
-
-    public MontyCompressedPosition(byte stm, byte enp_sq, byte rights, byte halfm, ushort fullm) : this()
-    {
-        this.stm = stm;
-        this.enp_sq = enp_sq;
-        this.rights = rights;
-        this.halfm = halfm;
-        this.fullm = fullm;
-    }
+    public byte stm = stm;
+    public byte enp_sq = enp_sq;
+    public byte rights = rights;
+    public byte halfm = halfm;
+    public ushort fullm = fullm;
 
     public static MontyCompressedPosition FromMontyPosition(in MontyPosition p)
     {
@@ -100,8 +91,6 @@ public unsafe struct MontyPosition(byte stm, byte enp_sq, byte rights, byte half
     public byte rights = rights;
     public byte halfm = halfm;
     public ushort fullm = fullm;
-
-    public ulong occ => bbs[0] | bbs[1];
 
     public static MontyPosition FromPosition(Position pos)
     {
@@ -152,6 +141,8 @@ public unsafe struct SearchData
 
 unsafe ref struct MontyPack
 {
+    public const int MaxSize = 1024;
+
     public MontyPosition startpos;
     public MontyCastling rights;
     public float result;
@@ -172,11 +163,12 @@ unsafe ref struct MontyPack
         NumEntries = 0;
     }
 
-    public bool IsAtMoveLimit => NumEntries == 1023;
+    public bool IsAtMoveLimit => NumEntries == MaxSize - 1;
 
     public void AddResultsAndWrite(float result, BinaryWriter br)
     {
         MontyCompressedPosition mcp = MontyCompressedPosition.FromMontyPosition(startpos);
+        
         for (int i = 0; i < 4; i++)
             br.Write(mcp.bbs[i]);
 
@@ -190,6 +182,7 @@ unsafe ref struct MontyPack
             br.Write(rights.rook_files[i]);
 
         br.Write((byte)(((int)result) * 2));
+
         var moveSpan = moves[..NumEntries];
         foreach (var sd in moveSpan)
         {
@@ -199,6 +192,7 @@ unsafe ref struct MontyPack
 
             br.Write(sd.best_move.GetData());
             br.Write(s);
+            
             if (sd.NumChildren == 0)
                 continue;
 
@@ -210,66 +204,11 @@ unsafe ref struct MontyPack
 
             for (int i = 0; i < sd.NumChildren; i++)
             {
-                var scaled = (byte)(sd.visit_distribution[i] * 256.0f / maxVisits);
+                var scaled = (byte)(sd.visit_distribution[i] * 255.0f / maxVisits);
                 br.Write(scaled);
             }
         }
 
-        br.Write((ushort)0);
-        br.Flush();
-    }
-
-
-    public void WriteStartpos(float result, BinaryWriter br)
-    {
-        MontyCompressedPosition mcp = MontyCompressedPosition.FromMontyPosition(startpos);
-        for (int i = 0; i < 4; i++)
-            br.Write(mcp.bbs[i]);
-
-        br.Write(mcp.stm);
-        br.Write(mcp.enp_sq);
-        br.Write(mcp.rights);
-        br.Write(mcp.halfm);
-        br.Write(mcp.fullm);
-
-        for (int i = 0; i < 4; i++)
-            br.Write(rights.rook_files[i]);
-
-        br.Write((byte)1);
-        br.Flush();
-    }
-
-    public void WriteOne(in SearchData sd, BinaryWriter br)
-    {
-        br.Flush();
-
-        Debug.Assert(sd.score >= 0.0f && sd.score <= 1.0f);
-
-        var s = (ushort)(sd.score * ushort.MaxValue);
-
-        br.Write(sd.best_move.GetData());
-        br.Write(s);
-
-        if (sd.NumChildren == 0)
-            return;
-
-        br.Write((byte)sd.NumChildren);
-
-        uint maxVisits = 0;
-        for (int i = 0; i < sd.NumChildren; i++)
-            maxVisits = Math.Max(maxVisits, sd.visit_distribution[i]);
-
-        for (int i = 0; i < sd.NumChildren; i++)
-        {
-            var scaled = (byte)(sd.visit_distribution[i] * 256.0f / maxVisits);
-            br.Write(scaled);
-        }
-
-        br.Flush();
-    }
-
-    public void WriteTail(BinaryWriter br)
-    {
         br.Write((ushort)0);
         br.Flush();
     }

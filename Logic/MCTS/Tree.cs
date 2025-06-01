@@ -1,4 +1,5 @@
-﻿using System;
+﻿using AwesomeOpossum.Logic.Evaluation;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -113,6 +114,8 @@ public unsafe class Tree
         ScoredMove* moves = stackalloc ScoredMove[256];
         uint count = (uint)pos.GenLegal(moves);
 
+        PolicyNetwork.RefreshPolicyAccumulator(pos);
+
         float maxScore = float.MinValue;
         for (uint i = 0; i < count; i++)
         {
@@ -198,7 +201,6 @@ public unsafe class Tree
                 bestScore = score;
                 bestIdx = i;
             }
-            //Debug.WriteLine($"{this[nodeIndex]} {score}");
         }
 
         return thisNode.FirstChild + bestIdx;

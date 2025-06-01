@@ -2,11 +2,8 @@
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 
-namespace AwesomeOpossum.Logic.NN
+namespace AwesomeOpossum.Logic.Evaluation
 {
-    /// <summary>
-    /// Keeps track of the weights of the active features for both sides.
-    /// </summary>
     public unsafe struct Accumulator
     {
         public const int ByteSize = ValueNetwork.L1_SIZE * sizeof(short);
@@ -59,6 +56,58 @@ namespace AwesomeOpossum.Logic.NN
             NativeMemory.AlignedFree(Black);
         }
     }
+
+    public unsafe struct PolicyAccumulator
+    {
+        public const int ByteSize = PolicyNetwork.L1_SIZE * sizeof(short);
+
+        public fixed short White[PolicyNetwork.L1_SIZE];
+        public fixed short Black[PolicyNetwork.L1_SIZE];
+
+        public PolicyAccumulator() { }
+
+        public Vector256<short>* this[int perspective]
+        {
+            get
+            {
+                if (perspective == Color.White)
+                {
+                    fixed (short* w = White)
+                        return (Vector256<short>*)w;
+                }
+                else
+                {
+                    fixed (short* b = Black)
+                        return (Vector256<short>*)b;
+                }
+            }
+        }
+
+        public void Dispose() { }
+    }
+
+    public unsafe struct PolicyAccumulator2
+    {
+        public const int ByteSize = PolicyNetwork.L1_SIZE * sizeof(short);
+
+        public readonly short* White;
+        public readonly short* Black;
+
+        public PolicyAccumulator2()
+        {
+            White = AlignedAllocZeroed<short>(PolicyNetwork.L1_SIZE);
+            Black = AlignedAllocZeroed<short>(PolicyNetwork.L1_SIZE);
+        }
+
+        public Vector256<short>* this[int perspective] => (perspective == Color.White) ? (Vector256<short>*)White : (Vector256<short>*)Black;
+
+        public void Dispose()
+        {
+            NativeMemory.AlignedFree(White);
+            NativeMemory.AlignedFree(Black);
+        }
+    }
+
 
 
     public unsafe struct BucketCache

@@ -3,7 +3,7 @@
 
 using System.Reflection;
 
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum.Logic.UCI
@@ -105,7 +105,7 @@ namespace AwesomeOpossum.Logic.UCI
                     info.OnSearchFinish = PrintFinalSearchInfo;
 
                     ParsePositionCommand(param, pos, setup);
-                    NNUE.RefreshAccumulator(info.Position);
+                    ValueNetwork.RefreshAccumulator(info.Position);
                 }
                 else if (cmd == "go")
                 {

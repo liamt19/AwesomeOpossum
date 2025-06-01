@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 
 namespace AwesomeOpossum.Logic.Core
 {

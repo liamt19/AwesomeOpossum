@@ -27,9 +27,9 @@ namespace AwesomeOpossum.Logic.Evaluation
             }
         }
 
-        public const int INPUT_BUCKETS = 4;
+        public const int INPUT_BUCKETS = 6;
         public const int INPUT_SIZE = 768;
-        public const int L1_SIZE = 256;
+        public const int L1_SIZE = 512;
         public const int OUTPUT_BUCKETS = 8;
 
         private const int BUCKET_DIV = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
@@ -48,14 +48,14 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static ReadOnlySpan<int> KingBuckets =>
         [
-            0, 0, 1, 1, 5, 5, 4, 4,
-            0, 0, 1, 1, 5, 5, 4, 4,
-            2, 2, 2, 2, 6, 6, 6, 6,
-            2, 2, 2, 2, 6, 6, 6, 6,
-            3, 3, 3, 3, 7, 7, 7, 7,
-            3, 3, 3, 3, 7, 7, 7, 7,
-            3, 3, 3, 3, 7, 7, 7, 7,
-            3, 3, 3, 3, 7, 7, 7, 7,
+            0, 0, 1, 1,  7,  7,  6,  6,
+            2, 2, 3, 3,  9,  9,  8,  8,
+            2, 2, 3, 3,  9,  9,  8,  8,
+            4, 4, 4, 4, 10, 10, 10, 10,
+            4, 4, 4, 4, 10, 10, 10, 10,
+            5, 5, 5, 5, 11, 11, 11, 11,
+            5, 5, 5, 5, 11, 11, 11, 11,
+            5, 5, 5, 5, 11, 11, 11, 11,
         ];
 
         public static int BucketForPerspective(int ksq, int perspective) => (KingBuckets[perspective == Black ? (ksq ^ 56) : ksq]);

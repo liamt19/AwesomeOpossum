@@ -3,7 +3,7 @@
 
 using System.Reflection;
 
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum.Logic.UCI
@@ -105,7 +105,7 @@ namespace AwesomeOpossum.Logic.UCI
                     info.OnSearchFinish = PrintFinalSearchInfo;
 
                     ParsePositionCommand(param, pos, setup);
-                    NNUE.RefreshAccumulator(info.Position);
+                    ValueNetwork.RefreshAccumulator(info.Position);
                 }
                 else if (cmd == "go")
                 {
@@ -160,7 +160,7 @@ namespace AwesomeOpossum.Logic.UCI
                 }
                 else if (cmd == "eval")
                 {
-                    Console.WriteLine($"{NNUE.GetEvaluation(pos)}");
+                    Console.WriteLine($"{ValueNetwork.Evaluate(pos)}");
                 }
             }
         }
@@ -312,7 +312,7 @@ namespace AwesomeOpossum.Logic.UCI
 
         private static void ProcessUCIOptions()
         {
-            Options = new Dictionary<string, UCIOption>();
+            Options = new();
 
             //  Get all "public static" fields, and specifically exclude constant fields (which have field.IsLiteral == true)
             List<FieldInfo> fields = typeof(SearchOptions).GetFields(BindingFlags.Public | BindingFlags.Static).Where(x => !x.IsLiteral).ToList();
@@ -328,7 +328,7 @@ namespace AwesomeOpossum.Logic.UCI
                                  :                                     "spin";
                 string defaultValue = field.GetValue(null).ToString().ToLower();
 
-                UCIOption opt = new UCIOption(fieldName, fieldType, defaultValue, field);
+                UCIOption opt = new(fieldName, fieldType, defaultValue, field);
 
                 Options.Add(fieldName, opt);
             }
@@ -338,83 +338,11 @@ namespace AwesomeOpossum.Logic.UCI
             Options[nameof(Hash)].SetMinMax(1, 1048576);
             Options[nameof(MoveOverhead)].SetMinMax(0, 2000);
 
-            Options[nameof(QuietOrderMin)].AutoMinMax();
-            Options[nameof(QuietOrderMax)].AutoMinMax();
-            Options[nameof(QuietOrderMult)].AutoMinMax();
-
-            Options[nameof(SEMinDepth)].AutoMinMax();
-            Options[nameof(SENumerator)].AutoMinMax();
-            Options[nameof(SEDoubleMargin)].AutoMinMax();
-            Options[nameof(SETripleMargin)].AutoMinMax();
-            Options[nameof(SETripleCapSub)].AutoMinMax();
-            Options[nameof(SEDepthAdj)].SetMinMax(-3, 2);
-
-            Options[nameof(NMPMinDepth)].AutoMinMax();
-            Options[nameof(NMPBaseRed)].AutoMinMax();
-            Options[nameof(NMPDepthDiv)].AutoMinMax();
-            Options[nameof(NMPEvalDiv)].AutoMinMax();
-            Options[nameof(NMPEvalMin)].SetMinMax(0, 6);
-
-            Options[nameof(RazoringMaxDepth)].AutoMinMax();
-            Options[nameof(RazoringMult)].AutoMinMax();
-
-            Options[nameof(RFPMaxDepth)].AutoMinMax();
-            Options[nameof(RFPMargin)].AutoMinMax();
-
-            Options[nameof(ProbcutBeta)].AutoMinMax();
-            Options[nameof(ProbcutBetaImp)].AutoMinMax();
-
-            Options[nameof(NMFutileBase)].AutoMinMax();
-            Options[nameof(NMFutilePVCoeff)].AutoMinMax();
-            Options[nameof(NMFutileImpCoeff)].AutoMinMax();
-            Options[nameof(NMFutileHistCoeff)].AutoMinMax();
-            Options[nameof(NMFutMarginB)].AutoMinMax();
-            Options[nameof(NMFutMarginM)].AutoMinMax();
-            Options[nameof(NMFutMarginDiv)].AutoMinMax();
-            Options[nameof(ShallowSEEMargin)].AutoMinMax();
-            Options[nameof(ShallowMaxDepth)].AutoMinMax();
-
-            Options[nameof(LMRQuietDiv)].AutoMinMax();
-            Options[nameof(LMRCaptureDiv)].AutoMinMax();
-            Options[nameof(DeeperMargin)].AutoMinMax();
-
-            Options[nameof(QSFutileMargin)].AutoMinMax();
-            Options[nameof(QSSeeMargin)].AutoMinMax();
-
-            Options[nameof(OrderingCheckBonus)].AutoMinMax();
-            Options[nameof(OrderingVictimMult)].AutoMinMax();
-
-            Options[nameof(IIRMinDepth)].SetMinMax(2, 6);
-            Options[nameof(AspWindow)].AutoMinMax();
-
-            Options[nameof(StatBonusMult)].AutoMinMax();
-            Options[nameof(StatBonusSub)].AutoMinMax();
-            Options[nameof(StatBonusMax)].AutoMinMax();
-
-            Options[nameof(StatMalusMult)].AutoMinMax();
-            Options[nameof(StatMalusSub)].AutoMinMax();
-            Options[nameof(StatMalusMax)].AutoMinMax();
-
-            Options[nameof(SEEValuePawn)].AutoMinMax();
-            Options[nameof(SEEValueKnight)].AutoMinMax();
-            Options[nameof(SEEValueBishop)].AutoMinMax();
-            Options[nameof(SEEValueRook)].AutoMinMax();
-            Options[nameof(SEEValueQueen)].AutoMinMax();
-
-            Options[nameof(ValuePawn)].AutoMinMax();
-            Options[nameof(ValueKnight)].AutoMinMax();
-            Options[nameof(ValueBishop)].AutoMinMax();
-            Options[nameof(ValueRook)].AutoMinMax();
-            Options[nameof(ValueQueen)].AutoMinMax();
-
-
             foreach (var optName in Options.Keys)
             {
                 var opt = Options[optName];
                 if (opt.FieldHandle.FieldType != typeof(int))
-                {
                     continue;
-                }
 
                 //  Ensure values are within [Min, Max] and Max > Min
                 int currValue = int.Parse(opt.DefaultValue);
@@ -436,21 +364,6 @@ namespace AwesomeOpossum.Logic.UCI
                 nameof(SearchOptions.UCI_Chess960),
                 nameof(SearchOptions.UCI_ShowWDL),
                 nameof(SearchOptions.UCI_PrettyPrint),
-                nameof(SearchOptions.UseSyzygy),
-                nameof(SearchOptions.SyzygyPath),
-
-                nameof(SearchOptions.SEMinDepth),
-                nameof(SearchOptions.NMPMinDepth),
-                nameof(SearchOptions.RFPMaxDepth),
-                nameof(SearchOptions.RFPMargin),
-                nameof(SearchOptions.ProbcutBeta),
-                nameof(SearchOptions.IIRMinDepth),
-                nameof(SearchOptions.AspWindow),
-                nameof(SearchOptions.ValuePawn),
-                nameof(SearchOptions.ValueKnight),
-                nameof(SearchOptions.ValueBishop),
-                nameof(SearchOptions.ValueRook),
-                nameof(SearchOptions.ValueQueen),
             ];
 
             foreach (string k in Options.Keys.Where(x => whitelist.Contains(x)))
@@ -469,8 +382,6 @@ namespace AwesomeOpossum.Logic.UCI
                 nameof(SearchOptions.UCI_Chess960),
                 nameof(SearchOptions.UCI_ShowWDL),
                 nameof(SearchOptions.UCI_PrettyPrint),
-                nameof(SearchOptions.UseSyzygy),
-                nameof(SearchOptions.SyzygyPath),
             ];
 
             foreach (var optName in Options.Keys)

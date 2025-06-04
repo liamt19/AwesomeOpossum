@@ -8,12 +8,12 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using AwesomeOpossum.Logic.Threads;
 
-using static AwesomeOpossum.Logic.NN.Aliases;
-using static AwesomeOpossum.Logic.NN.FunUnrollThings;
+using static AwesomeOpossum.Logic.Evaluation.Aliases;
+using static AwesomeOpossum.Logic.Evaluation.FunUnrollThings;
 
-namespace AwesomeOpossum.Logic.NN
+namespace AwesomeOpossum.Logic.Evaluation
 {
-    public static unsafe partial class Bucketed768
+    public static unsafe partial class ValueNetwork
     {
         public static string NetworkName
         {
@@ -21,40 +21,41 @@ namespace AwesomeOpossum.Logic.NN
             {
                 try
                 {
-                    return Assembly.GetEntryAssembly().GetCustomAttribute<EvalFileAttribute>().EvalFile.Trim();
+                    return Assembly.GetEntryAssembly().GetCustomAttribute<ValueFileAttribute>().ValueFile.Trim();
                 }
                 catch { return ""; }
             }
         }
 
-        public const int INPUT_BUCKETS = 4;
+        public const int INPUT_BUCKETS = 6;
         public const int INPUT_SIZE = 768;
-        public const int L1_SIZE = 256;
+        public const int L1_SIZE = 512;
         public const int OUTPUT_BUCKETS = 8;
 
+        private const int BUCKET_DIV = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
         private const int QA = 255;
         private const int QB = 64;
         public const int OUTPUT_SCALE = 400;
 
-        private const int N_FTW = INPUT_SIZE * L1_SIZE * INPUT_BUCKETS;
-        private const int N_FTB = L1_SIZE;
+        public const int N_FTW = INPUT_SIZE * L1_SIZE * INPUT_BUCKETS;
+        public const int N_FTB = L1_SIZE;
 
-        private const int N_L1W = L1_SIZE * 2 * OUTPUT_BUCKETS;
-        private const int N_L1B = OUTPUT_BUCKETS;
+        public const int N_L1W = L1_SIZE * 2 * OUTPUT_BUCKETS;
+        public const int N_L1B = OUTPUT_BUCKETS;
 
-        private static readonly NetContainer<short, short> Net;
+        private static readonly ValueNetContainer<short, short> Net;
         private static long ExpectedNetworkSize => (N_FTW + N_FTB + N_L1W + N_L1B) * sizeof(short);
 
         private static ReadOnlySpan<int> KingBuckets =>
         [
-            0, 0, 1, 1, 5, 5, 4, 4,
-            0, 0, 1, 1, 5, 5, 4, 4,
-            2, 2, 2, 2, 6, 6, 6, 6,
-            2, 2, 2, 2, 6, 6, 6, 6,
-            3, 3, 3, 3, 7, 7, 7, 7,
-            3, 3, 3, 3, 7, 7, 7, 7,
-            3, 3, 3, 3, 7, 7, 7, 7,
-            3, 3, 3, 3, 7, 7, 7, 7,
+            0, 0, 1, 1,  7,  7,  6,  6,
+            2, 2, 3, 3,  9,  9,  8,  8,
+            2, 2, 3, 3,  9,  9,  8,  8,
+            4, 4, 4, 4, 10, 10, 10, 10,
+            4, 4, 4, 4, 10, 10, 10, 10,
+            5, 5, 5, 5, 11, 11, 11, 11,
+            5, 5, 5, 5, 11, 11, 11, 11,
+            5, 5, 5, 5, 11, 11, 11, 11,
         ];
 
         public static int BucketForPerspective(int ksq, int perspective) => (KingBuckets[perspective == Black ? (ksq ^ 56) : ksq]);
@@ -67,9 +68,9 @@ namespace AwesomeOpossum.Logic.NN
 #endif
 
 
-        static Bucketed768()
+        static ValueNetwork()
         {
-            Net = new NetContainer<short, short>();
+            Net = new();
 
             Initialize(NetworkName);
         }
@@ -94,7 +95,7 @@ namespace AwesomeOpossum.Logic.NN
             long toRead = ExpectedNetworkSize;
             if (br.BaseStream.Position + toRead > br.BaseStream.Length)
             {
-                Console.WriteLine("Bucketed768's BinaryReader doesn't have enough data for all weights and biases to be read!");
+                Console.WriteLine("ValueNetwork's BinaryReader doesn't have enough data for all weights and biases to be read!");
                 Console.WriteLine($"It expects to read {toRead} bytes, but the stream's position is {br.BaseStream.Position} / {br.BaseStream.Length}");
                 Console.WriteLine("The file being loaded is either not a valid 768 network, or has different layer sizes than the hardcoded ones.");
                 if (exitIfFail)
@@ -211,22 +212,18 @@ namespace AwesomeOpossum.Logic.NN
         }
 
 
-        public static int GetEvaluation(Position pos)
+        public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
+        public static int Evaluate(Position pos, int outputBucket)
         {
-            int occ = (int)popcount(pos.bb.Occupancy);
-            int outputBucket = (occ - 2) / ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-
-            var v = GetEvaluation(pos, outputBucket);
-
-            return v;
+            int ev = GetEvaluation(pos, outputBucket);
+            return int.Clamp(ev, ScoreTTLoss + 1, ScoreTTWin - 1);
         }
 
-
-        public static int GetEvaluation(Position pos, int outputBucket)
+        private static int GetEvaluation(Position pos, int outputBucket)
         {
             ref Accumulator accumulator = ref *pos.State->Accumulator;
-            Bucketed768.ProcessUpdates(pos);
-            //Bucketed768.RefreshAccumulator(pos);
+            //ProcessUpdates(pos);
+            RefreshAccumulator(pos);
 
             Vector256<short> maxVec = Vector256.Create((short)QA);
             Vector256<short> zeroVec = Vector256<short>.Zero;

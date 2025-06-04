@@ -7,13 +7,6 @@
     public static unsafe class PrecomputedData
     {
         /// <summary>
-        /// Index using [depth][moveIndex]
-        /// </summary>
-        public static readonly int[][] LogarithmicReductionTable = new int[MaxPly][];
-
-        public static readonly int[][] LMPTable = new int[2][];
-
-        /// <summary>
         /// At each index, contains a ulong with bits set at each neighboring square.
         /// </summary>
         public static readonly ulong* NeighborsMask = AlignedAllocZeroed<ulong>(SquareNB);
@@ -105,8 +98,6 @@
             DoPawnAttacks();
 
             DoBetweenBBs();
-
-            DoReductionTable();
 
             DoRayBBs();
         }
@@ -316,34 +307,5 @@
                 }
             }
         }
-
-        private static void DoReductionTable()
-        {
-            for (int depth = 0; depth < MaxPly; depth++)
-            {
-                LogarithmicReductionTable[depth] = new int[MoveListSize];
-                for (int moveIndex = 0; moveIndex < MoveListSize; moveIndex++)
-                {
-                    //LogarithmicReductionTable[depth][moveIndex] = (int)(Math.Log(depth) * Math.Log(moveIndex) / 2 - 0.3);
-                    LogarithmicReductionTable[depth][moveIndex] = (int)((Math.Log(depth) * Math.Log(moveIndex) / 2.25) + 0.25);
-
-                    if (LogarithmicReductionTable[depth][moveIndex] < 1)
-                    {
-                        LogarithmicReductionTable[depth][moveIndex] = 0;
-                    }
-                }
-            }
-
-            const int improving = 1;
-            const int not_improving = 0;
-            LMPTable[not_improving] = new int[MaxPly];
-            LMPTable[improving] = new int[MaxPly];
-            for (int depth = 0; depth < MaxPly; depth++)
-            {
-                LMPTable[not_improving][depth] = (3 + (depth * depth)) / 2;
-                LMPTable[improving][depth] = 3 + (depth * depth);
-            }
-        }
     }
-
 }

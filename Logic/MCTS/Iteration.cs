@@ -1,4 +1,4 @@
-﻿using AwesomeOpossum.Logic.NN;
+﻿using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Search;
 using AwesomeOpossum.Logic.Threads;
 using System;
@@ -21,7 +21,6 @@ public static unsafe class Iteration
 
         depth += 1;
 
-        //Debug.Write($"{new string('\t', RecursiveCalls())}{nodeIdx} {node}\t");
         float? u;
         if (node.IsTerminal || node.Visits == 0)
         {
@@ -37,7 +36,6 @@ public static unsafe class Iteration
                 u = GetNodeValue(pos, nodeIdx);
             }
 
-            //Debug.WriteLine($"value {u}");
         }
         else
         {
@@ -45,15 +43,11 @@ public static unsafe class Iteration
             if (!node.IsExpanded) {
                 if (!tree.Expand(pos, nodeIdx, depth))
                     return null;
-
-                //Debug.Write($" children: [{string.Join(", ", tree.ChildrenIndicesOf(node))}]");
             }
 
             var childIdx = PickAction(pos, nodeIdx, node);
 
             var move = tree[childIdx].Move;
-
-            //Debug.WriteLine("");
 
             Debug.Assert(pos.IsLegal(move));
             Debug.Assert(childIdx != 0);
@@ -94,7 +88,7 @@ public static unsafe class Iteration
         SearchThread thisThread = pos.Owner;
         ref var node = ref thisThread.Tree[nodeIdx];
 
-        float f = NNUE.GetEvaluation(pos);
+        float f = ValueNetwork.Evaluate(pos);
         float wdl = 1.0f / (1.0f + float.Exp(-f / 400.0f));
 
         return wdl;

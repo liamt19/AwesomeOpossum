@@ -3,7 +3,7 @@ using System.Text;
 
 using AwesomeOpossum.Logic.Datagen;
 using AwesomeOpossum.Logic.MCTS;
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum
@@ -107,7 +107,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.EqualsIgnoreCase("eval"))
                 {
-                    Log($"Bucketed768 Eval: {NNUE.GetEvaluation(p)}");
+                    Log($"Value: {ValueNetwork.Evaluate(p)}");
                 }
                 else if (input.EqualsIgnoreCase("eval all"))
                 {
@@ -197,7 +197,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.StartsWithIgnoreCase("activations"))
                 {
-                    Bucketed768.PrintActivationStats();
+                    ValueNetwork.PrintActivationStats();
                 }
                 else
                 {
@@ -249,7 +249,7 @@ namespace AwesomeOpossum
 
         private static void HandleEvalAllCommand()
         {
-            Log($"Static evaluation ({ColorToString(p.ToMove)}'s perspective): {NNUE.GetEvaluation(p)}");
+            Log($"Static evaluation ({ColorToString(p.ToMove)}'s perspective): {ValueNetwork.Evaluate(p)}");
             Log($"\r\nMove evaluations ({ColorToString(p.ToMove)}'s perspective):");
 
             ScoredMove* list = stackalloc ScoredMove[MoveListSize];
@@ -260,7 +260,7 @@ namespace AwesomeOpossum
             {
                 Move m = list[i].Move;
                 p.MakeMove(m);
-                scoreList.Add((m, -NNUE.GetEvaluation(p)));
+                scoreList.Add((m, -ValueNetwork.Evaluate(p)));
                 p.UnmakeMove(m);
             }
 
@@ -277,6 +277,7 @@ namespace AwesomeOpossum
             
             List<(Move mv, float policy, float raw)> scoreList = new();
 
+            PolicyNetwork.RefreshPolicyAccumulator(p);
             float maxScore = float.MinValue;
             for (uint i = 0; i < count; i++)
             {
@@ -296,7 +297,7 @@ namespace AwesomeOpossum
 
             var sorted = scoreList.OrderBy(x => x.raw).ToList();
             for (int i = 0; i < sorted.Count; i++)
-                Log($"{sorted[i].mv.ToString(p),-5}->{sorted[i].policy,9:0.000}%{sorted[i].raw,12:0.0}");
+                Log($"{sorted[i].mv, -6} {sorted[i].mv.ToString(p),-5}->{sorted[i].policy,9:0.000}%{sorted[i].raw,12:0.0}");
         }
 
         private static void PrintMoves()
@@ -323,8 +324,8 @@ namespace AwesomeOpossum
 
             if (File.Exists(input))
             {
-                NNUE.LoadNewNetwork(input);
-                NNUE.RefreshAccumulator(p);
+                ValueNetwork.Initialize(input, exitIfFail: false);
+                ValueNetwork.RefreshAccumulator(p);
             }
             else
             {

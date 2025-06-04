@@ -1,25 +1,37 @@
 ﻿
 #pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+#pragma warning disable CA1715 // Identifiers should have correct prefix
 
-using static AwesomeOpossum.Logic.NN.Bucketed768;
+namespace AwesomeOpossum.Logic.Evaluation;
 
-namespace AwesomeOpossum.Logic.NN
+public unsafe struct ValueNetContainer<T, W>
 {
-    public unsafe struct NetContainer<T, W>
+    public readonly T* FTWeights;
+    public readonly T* FTBiases;
+    public readonly W* L1Weights;
+    public readonly W* L1Biases;
+
+    public ValueNetContainer()
     {
-        public readonly T* FTWeights;
-        public readonly T* FTBiases;
-        public readonly W* L1Weights;
-        public readonly W* L1Biases;
+        FTWeights = (T*)AlignedAllocZeroed((nuint)sizeof(T) * ValueNetwork.N_FTW);
+        FTBiases  = (T*)AlignedAllocZeroed((nuint)sizeof(T) * ValueNetwork.N_FTB);
+        L1Weights = (W*)AlignedAllocZeroed((nuint)sizeof(W) * ValueNetwork.N_L1W);
+        L1Biases  = (W*)AlignedAllocZeroed((nuint)sizeof(W) * ValueNetwork.N_L1B);
+    }
+}
 
-        public NetContainer()
-        {
-            FTWeights = (T*)AlignedAllocZeroed((nuint)sizeof(T) * INPUT_SIZE * L1_SIZE * INPUT_BUCKETS);
-            FTBiases  = (T*)AlignedAllocZeroed((nuint)sizeof(T) * L1_SIZE);
+public unsafe struct PolicyNetContainer<T, W>
+{
+    public readonly T* FTWeights;
+    public readonly T* FTBiases;
+    public readonly W* L1Weights;
+    public readonly W* L1Biases;
 
-            L1Weights = (W*)AlignedAllocZeroed((nuint)sizeof(W) * L1_SIZE * 2 * OUTPUT_BUCKETS);
-            L1Biases  = (W*)AlignedAllocZeroed((nuint)sizeof(W) * OUTPUT_BUCKETS);
-        }
+    public PolicyNetContainer()
+    {
+        FTWeights = (T*)AlignedAllocZeroed((nuint)sizeof(T) * PolicyNetwork.N_FTW);
+        FTBiases  = (T*)AlignedAllocZeroed((nuint)sizeof(T) * PolicyNetwork.N_FTB);
+        L1Weights = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1W);
+        L1Biases  = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1B);
     }
 }

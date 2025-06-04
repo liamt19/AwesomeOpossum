@@ -7,46 +7,14 @@ using System.Runtime.Intrinsics.X86;
 
 using AwesomeOpossum.Properties;
 
-namespace AwesomeOpossum.Logic.NN
+namespace AwesomeOpossum.Logic.Evaluation
 {
     public static unsafe class NNUE
     {
-        public const NetworkArchitecture NetArch = NetworkArchitecture.Bucketed768;
         public static readonly bool UseAvx = Avx2.IsSupported;
         public static readonly bool UseSSE = Sse3.IsSupported;
         public static readonly bool UseARM = AdvSimd.IsSupported;
         public static bool UseFallback => !(UseAvx || UseSSE || UseARM);
-
-        [MethodImpl(Inline)]
-        public static void RefreshAccumulator(Position pos)
-        {
-            Bucketed768.RefreshAccumulator(pos);
-        }
-
-        [MethodImpl(Inline)]
-        public static int GetEvaluation(Position pos)
-        {
-            int ev = Bucketed768.GetEvaluation(pos);
-            ev = int.Clamp(ev, ScoreTTLoss + 1, ScoreTTWin - 1);
-            return ev;
-        }
-
-        [MethodImpl(Inline)]
-        public static void MakeMove(Position pos, Move m)
-        {
-            Bucketed768.MakeMove(pos, m);
-        }
-
-
-        /// <summary>
-        /// Calls the Initialize method for the selected architecture.
-        /// <br></br>
-        /// Call <see cref="RefreshAccumulator"/> for any existing positions, since their accumulators will no longer be computed!
-        /// </summary>
-        public static void LoadNewNetwork(string networkToLoad)
-        {
-            Bucketed768.Initialize(networkToLoad, exitIfFail: false);
-        }
 
 
         /// <summary>
@@ -61,9 +29,6 @@ namespace AwesomeOpossum.Logic.NN
                 return File.OpenRead(networkToLoad);
             }
 
-            //  Try to load the default network
-            networkToLoad = Bucketed768.NetworkName;
-
             try
             {
                 Assembly asm = Assembly.GetExecutingAssembly();
@@ -73,7 +38,7 @@ namespace AwesomeOpossum.Logic.NN
                     if (res.ToLower().Contains("properties"))
                         continue;
 
-                    if (!res.EndsWith(".dll") && !res.EndsWith(".so") && !res.Contains("HorsieBindings"))
+                    if (!res.EndsWith(".dll") && !res.EndsWith(".so") && !res.Contains("HorsieBindings") && res.Contains(networkToLoad))
                     {
                         Stream stream = asm.GetManifestResourceStream(res);
                         if (stream != null)
@@ -113,44 +78,6 @@ namespace AwesomeOpossum.Logic.NN
 
 
 
-        /// <summary>
-        /// Transposes the weights stored in <paramref name="block"/>
-        /// </summary>
-        public static void TransposeLayerWeights(short* block, int columnLength, int rowLength)
-        {
-            short* temp = stackalloc short[columnLength * rowLength];
-            Unsafe.CopyBlock(temp, block, (uint)(sizeof(short) * columnLength * rowLength));
-
-            for (int bucket = 0; bucket < rowLength; bucket++)
-            {
-                short* thisBucket = block + (bucket * columnLength);
-
-                for (int i = 0; i < columnLength; i++)
-                {
-                    thisBucket[i] = temp[(rowLength * i) + bucket];
-                }
-            }
-        }
-
-        public static void NetStats(string layerName, void* layer, int n)
-        {
-            long avg = 0;
-            int max = int.MinValue;
-            int min = int.MaxValue;
-
-            short* ptr = (short*)layer;
-            for (int i = 0; i < n; i++)
-            {
-                max = Math.Max(max, ptr[i]);
-                min = Math.Min(min, ptr[i]);
-                avg += ptr[i];
-            }
-
-            Log($"{layerName}\tmin: {min}, max: {max}, avg: {(double)avg / n}");
-        }
-
-
-
         public static void Trace(Position pos)
         {
             char[][] board = new char[3 * 8 + 1][];
@@ -165,7 +92,7 @@ namespace AwesomeOpossum.Logic.NN
                 board[row][8 * 8 + 1] = '\0';
             }
 
-            int baseEval = GetEvaluation(pos);
+            int baseEval = ValueNetwork.Evaluate(pos);
 
             Log($"\nNNUE evaluation: {baseEval}\n");
 
@@ -185,8 +112,8 @@ namespace AwesomeOpossum.Logic.NN
                     {
                         bb.RemovePiece(idx, pc, pt);
 
-                        RefreshAccumulator(pos);
-                        int eval = GetEvaluation(pos);
+                        ValueNetwork.RefreshAccumulator(pos);
+                        int eval = ValueNetwork.Evaluate(pos);
                         v = baseEval - eval;
 
                         bb.AddPiece(idx, pc, pt);
@@ -202,11 +129,11 @@ namespace AwesomeOpossum.Logic.NN
                 Log(new string(board[row]));
             }
 
-            RefreshAccumulator(pos);
+            ValueNetwork.RefreshAccumulator(pos);
             Log("Buckets:\n");
-            for (int b = 0; b < Bucketed768.OUTPUT_BUCKETS; b++)
+            for (int b = 0; b < ValueNetwork.OUTPUT_BUCKETS; b++)
             {
-                var ev = Bucketed768.GetEvaluation(pos, b);
+                var ev = ValueNetwork.Evaluate(pos, b);
                 Log($"bucket {b}: {ev,6}" + ((baseEval == ev) ? "    <--- Using this bucket" : string.Empty));
             }
         }
@@ -227,8 +154,8 @@ namespace AwesomeOpossum.Logic.NN
 
             //  White king on A1, black king on H8
             Position pos = new Position("7k/8/8/8/8/8/8/K7 w - - 0 1", true, owner: GlobalSearchPool.MainThread);
-            RefreshAccumulator(pos);
-            int baseEval = GetEvaluation(pos);
+            ValueNetwork.RefreshAccumulator(pos);
+            int baseEval = ValueNetwork.Evaluate(pos);
 
             Log($"\nNNUE evaluation: {baseEval}\n");
 
@@ -245,8 +172,8 @@ namespace AwesomeOpossum.Logic.NN
                 }
 
                 bb.AddPiece(i, pieceColor, pieceType);
-                RefreshAccumulator(pos);
-                int eval = GetEvaluation(pos);
+                ValueNetwork.RefreshAccumulator(pos);
+                int eval = ValueNetwork.Evaluate(pos);
                 bb.RemovePiece(i, pieceColor, pieceType);
 
                 writeSquare(board, GetIndexFile(i), GetIndexRank(i), pieceType + 1 + pieceColor * 8, eval);

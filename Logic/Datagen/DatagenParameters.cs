@@ -3,7 +3,7 @@ namespace AwesomeOpossum.Logic.Datagen
 {
     public static class DatagenParameters
     {
-        public const int HashSize = 32;
+        public const int HashSize = 8;
 
         public const int RandomPlies = 8;
         public const bool RandomizeStartSide = true;

@@ -64,9 +64,11 @@ namespace AwesomeOpossum.Logic.Threads
 
             for (int i = 0; i < ThreadCount; i++)
             {
-                Threads[i] = new SearchThread(i);
-                Threads[i].AssocPool = this;
-                Threads[i].Tree = SharedTree;
+                Threads[i] = new(i)
+                {
+                    AssocPool = this,
+                    Tree = SharedTree
+                };
             }
 
             MainThread.WaitForThreadFinished();

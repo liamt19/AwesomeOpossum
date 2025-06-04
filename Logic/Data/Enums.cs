@@ -73,12 +73,6 @@
     public struct GenNonEvasions : MoveGenerationType { }
 
 
-    public enum NetworkArchitecture
-    {
-        Bucketed768
-    }
-
-
     public static class Files
     {
         public const int A = 0;

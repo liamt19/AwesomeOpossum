@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using AwesomeOpossum.Logic.MCTS;
-using AwesomeOpossum.Logic.NN;
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum.Logic.Core
@@ -10,14 +10,38 @@ namespace AwesomeOpossum.Logic.Core
     public unsafe partial class Position
     {
         public Bitboard bb;
-
-        /// <summary>
-        /// The second number in the FEN, which starts at 1 and increases every time black moves.
-        /// </summary>
         public int FullMoves = 1;
-
         public int ToMove;
 
+        public List<ulong> Hashes;
+        public bool IsChess960 = false;
+
+        public StateInfo* State;
+
+        public readonly SearchThread Owner;
+
+        private readonly StateInfo* StartingState;
+        private readonly StateInfo* EndState;
+
+
+
+        private readonly Accumulator* _accumulatorBlock;
+
+        public PolicyAccumulator PolicyAccumulator;
+
+
+
+        private readonly bool UpdateNN;
+
+        private readonly int[] CastlingRookSquares;
+        private readonly ulong[] CastlingRookPaths;
+
+
+
+
+        private const int StateStackSize = 2048;
+
+        public StateInfo* NextState => (State + 1);
         public bool InCheck => popcount(State->Checkers) == 1;
         public bool InDoubleCheck => popcount(State->Checkers) == 2;
         public bool Checked => popcount(State->Checkers) != 0;
@@ -26,44 +50,7 @@ namespace AwesomeOpossum.Logic.Core
         public ulong PawnHash => State->PawnHash;
         public ulong NonPawnHash(int pc) => State->NonPawnHash[pc];
         public int CapturedPiece => State->CapturedPiece;
-
-        /// <summary>
-        /// The number of <see cref="StateInfo"/> items that memory will be allocated for within the StateStack, which is 256 KB.
-        /// If you find yourself in a game exceeding 2047 moves, go outside.
-        /// </summary>
-        private const int StateStackSize = 2048;
-
-        public readonly StateInfo* StartingState;
-        private readonly StateInfo* EndState;
-
-
-        /// <summary>
-        /// A pointer to this Position's current <see cref="StateInfo"/> object, which corresponds to the StateStack[GamePly]
-        /// </summary>
-        public StateInfo* State;
-        public StateInfo* NextState => (State + 1);
-
-        private readonly Accumulator* _accumulatorBlock;
-
-
-        /// <summary>
-        /// The SearchThread that owns this Position instance.
-        /// </summary>
-        public readonly SearchThread Owner;
-
-        /// <summary>
-        /// Whether or not to incrementally update accumulators when making/unmaking moves.
-        /// This must be true if this position object is being used in a search, 
-        /// but for purely perft this should be disabled for performance.
-        /// </summary>
-        private readonly bool UpdateNN;
-
-
-        private readonly int[] CastlingRookSquares;
-        private readonly ulong[] CastlingRookPaths;
-        public List<ulong> Hashes;
-
-        public bool IsChess960 = false;
+        public int KingSquare(int pc) => State->KingSquares[pc];
 
 
         [MethodImpl(Inline)]
@@ -129,7 +116,8 @@ namespace AwesomeOpossum.Logic.Core
             this.UpdateNN = createAccumulators;
             this.Owner = owner;
 
-            this.bb = new Bitboard();
+            this.bb = new();
+            this.PolicyAccumulator = new();
 
             Hashes = new List<ulong>(1024);
             StartingState = AlignedAllocZeroed<StateInfo>(StateStackSize);
@@ -180,6 +168,8 @@ namespace AwesomeOpossum.Logic.Core
             }
 
             NativeMemory.AlignedFree((void*)StartingState);
+
+            PolicyAccumulator.Dispose();
         }
 
         /// <summary>
@@ -248,7 +238,7 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                NNUE.MakeMove(this, move);
+                //ValueNetwork.MakeMove(this, move);
             }
 
             Hashes.Add(Hash);
@@ -1087,7 +1077,8 @@ namespace AwesomeOpossum.Logic.Core
 
             if (UpdateNN)
             {
-                NNUE.RefreshAccumulator(this);
+                ValueNetwork.RefreshAccumulator(this);
+                PolicyNetwork.RefreshPolicyAccumulator(this);
             }
 
             return true;

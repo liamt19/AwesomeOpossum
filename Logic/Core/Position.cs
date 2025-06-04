@@ -46,7 +46,7 @@ namespace AwesomeOpossum.Logic.Core
 
         private readonly Accumulator* _accumulatorBlock;
 
-        public readonly PolicyAccumulator PolicyAccumulator;
+        public PolicyAccumulator PolicyAccumulator;
 
         /// <summary>
         /// The SearchThread that owns this Position instance.

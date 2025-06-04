@@ -297,7 +297,7 @@ namespace AwesomeOpossum
 
             var sorted = scoreList.OrderBy(x => x.raw).ToList();
             for (int i = 0; i < sorted.Count; i++)
-                Log($"{sorted[i].mv.ToString(p),-5}->{sorted[i].policy,9:0.000}%{sorted[i].raw,12:0.0}");
+                Log($"{sorted[i].mv, -6} {sorted[i].mv.ToString(p),-5}->{sorted[i].policy,9:0.000}%{sorted[i].raw,12:0.0}");
         }
 
         private static void PrintMoves()

@@ -24,7 +24,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         public const int INPUT_BUCKETS = 1;
         public const int INPUT_SIZE = 768;
-        public const int L1_SIZE = 128;
+        public const int L1_SIZE = 256;
         public const int OUTPUT_SIZE = 1880;
         public const int OUTPUT_BUCKETS = 1;
 
@@ -106,8 +106,8 @@ namespace AwesomeOpossum.Logic.Evaluation
         {
             ref Bitboard bb = ref pos.bb;
 
-            var wAccumulation = (short*)pos.PolicyAccumulator[White];
-            var bAccumulation = (short*)pos.PolicyAccumulator[Black];
+            var wAccumulation = pos.PolicyAccumulator[White];
+            var bAccumulation = pos.PolicyAccumulator[Black];
             Unsafe.CopyBlock(wAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
             Unsafe.CopyBlock(bAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
 
@@ -115,12 +115,13 @@ namespace AwesomeOpossum.Logic.Evaluation
             while (occ != 0)
             {
                 int pieceIdx = poplsb(&occ);
-
-                int pt = bb.GetPieceAtIndex(pieceIdx);
                 int pc = bb.GetColorAtIndex(pieceIdx);
+                int pt = bb.GetPieceAtIndex(pieceIdx);
 
-                PolicyUnrollThings.Add(wAccumulation, wAccumulation, &Net.FTWeights[FeatureIndex(pc, pt, pieceIdx, White)]);
-                PolicyUnrollThings.Add(bAccumulation, bAccumulation, &Net.FTWeights[FeatureIndex(pc, pt, pieceIdx, Black)]);
+                var wIdx = FeatureIndex(pc, pt, pieceIdx, White);
+                var bIdx = FeatureIndex(pc, pt, pieceIdx, Black);
+                PolicyUnrollThings.Add((short*)wAccumulation, (short*)wAccumulation, &Net.FTWeights[wIdx]);
+                PolicyUnrollThings.Add((short*)bAccumulation, (short*)bAccumulation, &Net.FTWeights[bIdx]);
             }
 
             int N = Vector256<short>.Count;
@@ -129,12 +130,10 @@ namespace AwesomeOpossum.Logic.Evaluation
             var zero = Vector256<short>.Zero;
             var one = Vector256.Create((short)QA);
 
-            var w = (Vector256<short>*)wAccumulation;
-            var b = (Vector256<short>*)bAccumulation;
             for (int i = 0; i < SimdChunks; i++)
             {
-                w[i] = Vector256.Clamp(w[i], zero, one);
-                b[i] = Vector256.Clamp(b[i], zero, one);
+                wAccumulation[i] = Vector256.Clamp(wAccumulation[i], zero, one);
+                bAccumulation[i] = Vector256.Clamp(bAccumulation[i], zero, one);
             }
         }
 
@@ -143,9 +142,9 @@ namespace AwesomeOpossum.Logic.Evaluation
         private static int Orient(int sq, int perspective) => sq ^ (56 * perspective);
 
         [MethodImpl(Inline)]
-        private static int FeatureIndex(int sq, int pc, int pt, int perspective)
+        private static int FeatureIndex(int pc, int pt, int sq, int perspective)
         {
-            return ((pc ^ perspective) * 64 * 6) + (pt * 64) + Orient(sq, perspective);
+            return (((pc ^ perspective) * 64 * 6) + (pt * 64) + Orient(sq, perspective)) * L1_SIZE;
         }
 
         [MethodImpl(Inline)]

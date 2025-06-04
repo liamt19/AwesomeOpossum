@@ -61,39 +61,10 @@ namespace AwesomeOpossum.Logic.Evaluation
     {
         public const int ByteSize = PolicyNetwork.L1_SIZE * sizeof(short);
 
-        public fixed short White[PolicyNetwork.L1_SIZE];
-        public fixed short Black[PolicyNetwork.L1_SIZE];
-
-        public PolicyAccumulator() { }
-
-        public Vector256<short>* this[int perspective]
-        {
-            get
-            {
-                if (perspective == Color.White)
-                {
-                    fixed (short* w = White)
-                        return (Vector256<short>*)w;
-                }
-                else
-                {
-                    fixed (short* b = Black)
-                        return (Vector256<short>*)b;
-                }
-            }
-        }
-
-        public void Dispose() { }
-    }
-
-    public unsafe struct PolicyAccumulator2
-    {
-        public const int ByteSize = PolicyNetwork.L1_SIZE * sizeof(short);
-
         public readonly short* White;
         public readonly short* Black;
 
-        public PolicyAccumulator2()
+        public PolicyAccumulator()
         {
             White = AlignedAllocZeroed<short>(PolicyNetwork.L1_SIZE);
             Black = AlignedAllocZeroed<short>(PolicyNetwork.L1_SIZE);
@@ -107,8 +78,6 @@ namespace AwesomeOpossum.Logic.Evaluation
             NativeMemory.AlignedFree(Black);
         }
     }
-
-
 
     public unsafe struct BucketCache
     {

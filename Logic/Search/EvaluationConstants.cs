@@ -49,21 +49,6 @@ namespace AwesomeOpossum.Logic.Search
         [MethodImpl(Inline)]
         public static bool IsDecisive(int score) => IsWin(score) || IsLoss(score);
 
-
-        [MethodImpl(Inline)]
-        public static int GetPieceValue(int pt)
-        {
-            return pt switch
-            {
-                Pawn   => ValuePawn,
-                Knight => ValueKnight,
-                Bishop => ValueBishop,
-                Rook   => ValueRook,
-                Queen  => ValueQueen,
-                _      => 0,
-            };
-        }
-
         [MethodImpl(Inline)]
         public static int GetSEEValue(int pt)
         {

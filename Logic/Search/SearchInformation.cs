@@ -35,9 +35,9 @@ namespace AwesomeOpossum.Logic.Search
         {
             return new SearchInformation(pos)
             {
-                SoftNodeLimit = nodeLimit * 2,
-                HardNodeLimit = nodeLimit * 4,
-                DepthLimit = Math.Max(8, depthLimit),
+                SoftNodeLimit = nodeLimit,
+                HardNodeLimit = nodeLimit,
+                DepthLimit = Math.Max(12, depthLimit),
                 OnIterationUpdate = null,
                 OnSearchFinish = null,
             };
@@ -48,7 +48,7 @@ namespace AwesomeOpossum.Logic.Search
             return new SearchInformation(pos)
             {
                 SoftNodeLimit = nodeLimit,
-                HardNodeLimit = nodeLimit * 4,
+                HardNodeLimit = nodeLimit,
                 DepthLimit = depthLimit,
                 OnIterationUpdate = null,
                 OnSearchFinish = null,

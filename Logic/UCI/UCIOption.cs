@@ -50,6 +50,10 @@ namespace AwesomeOpossum.Logic.UCI
             Type = type;
             DefaultValue = defaultValue;
             FieldHandle = fieldHandle;
+
+            if (FieldHandle.FieldType != typeof(bool))
+                AutoMinMax();
+
         }
 
         public void SetMinMax(int min, int max)

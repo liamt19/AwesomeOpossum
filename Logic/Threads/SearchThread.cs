@@ -245,16 +245,24 @@ namespace AwesomeOpossum.Logic.Threads
         public void Playout(ref SearchInformation _info)
         {
             ValueNetwork.ResetCaches(this);
-
-            SearchInformation info = _info;
-            info.Position = RootPosition;
-            HardNodeLimit = info.HardNodeLimit;
-
             ClearTree();
 
             PlayoutIteration = 0;
 
+            SearchInformation info = _info;
+            info.Position = RootPosition;
+            HardNodeLimit = info.HardNodeLimit;
             Stopwatch outputTimer = Stopwatch.StartNew();
+
+            void Display()
+            {
+                info.OnIterationUpdate?.Invoke(ref info);
+                outputTimer.Restart();
+            }
+
+            Move bestMove = Move.Null, lastBestMove = Move.Null;
+            float bestScore = 0;
+            uint bmChanges = 0;
 
             while (!ShouldStop())
             {
@@ -268,11 +276,20 @@ namespace AwesomeOpossum.Logic.Threads
                 Nodes += usedDepth;
                 SelDepth = Math.Max(SelDepth, usedDepth - 1);
 
+                if (PlayoutIteration % 128 == 0)
+                {
+                    (_, bestMove, bestScore) = Tree.GetBestAction(0);
+                    if (bestMove != lastBestMove)
+                    {
+                        bmChanges++;
+                        lastBestMove = bestMove;
+                    }
+                }
+
                 if (CurrentDepth > AverageDepth)
                 {
                     AverageDepth = CurrentDepth;
-                    info.OnIterationUpdate?.Invoke(ref info);
-                    outputTimer.Restart();
+                    Display();
 
                     if (CurrentDepth >= info.DepthLimit)
                         SetStop(true);
@@ -286,34 +303,31 @@ namespace AwesomeOpossum.Logic.Threads
 
                 if (IsMain)
                 {
+                    if (NodeLimitReached())
+                        SetStop();
+
+                    if (IsDatagen)
+                        continue;
+
                     if (PlayoutIteration % 8192 == 0 && outputTimer.Elapsed.TotalSeconds > 3)
+                        Display();
+
+                    if (PlayoutIteration % 4096 == 0 && TimeManager.HasSoftTime)
                     {
-                        info.OnIterationUpdate?.Invoke(ref info);
-                        outputTimer.Restart();
+                        double bmStability = (0.90 + (Math.Log(bmChanges + 1) * 0.144));
+
+                        if (TimeManager.GetSearchTime() >= TimeManager.SoftTimeLimit * bmStability)
+                            SetStop();
+
+                        bmChanges = 0;
                     }
 
-                    CheckLimits();
+                    if (PlayoutIteration % 1024 == 0 && TimeManager.CheckHardTime())
+                        SetStop();
                 }
             }
-
         }
-
-        public void CheckLimits()
-        {
-            if (IsDatagen)
-            {
-                if (Nodes >= HardNodeLimit)
-                    SetStop();
-            }
-            else
-            {
-                if (NodeLimitReached())
-                    SetStop();
-
-                if (PlayoutIteration % 2048 == 0 && TimeManager.CheckHardTime())
-                    SetStop();
-            }
-        }
+        
 
 
         public bool NodeLimitReached()

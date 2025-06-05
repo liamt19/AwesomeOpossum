@@ -15,6 +15,7 @@
         public static double GetSearchTime() => TotalSearchTime.ElapsedMilliseconds;
 
 
+        public static void RemoveSoftLimit() => SoftTimeLimit = -1;
         public static void RemoveHardLimit() => HardTimeLimit = MaxSearchTime;
         public static void SetHardLimit(int movetime)
         {
@@ -24,8 +25,8 @@
 
         public static void Reset()
         {
-            HardTimeLimit = MaxSearchTime;
-            SoftTimeLimit = -1;
+            RemoveSoftLimit();
+            RemoveHardLimit();
         }
 
         public static bool CheckHardTime()

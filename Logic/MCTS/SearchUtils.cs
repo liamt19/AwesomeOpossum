@@ -14,7 +14,7 @@ public static unsafe class SearchUtils
     {
         var cpu = isRootNode ? 0.5f : 0.25f;
         
-        var scale = 5000.0f;
+        var scale = 4000.0f;
         cpu *= 1 + float.Log10((node.Visits + scale) / scale);
 
         return cpu;

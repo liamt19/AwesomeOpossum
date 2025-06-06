@@ -30,10 +30,13 @@ public static unsafe class SearchUtils
         return float.Exp(0.5f * float.Log10(Math.Max(node.Visits, 1)));
     }
 
-    public static float GetTemperatureAdjustment(uint depth, float q)
+    public static float GetTemperatureAdjustment(int depth, float q)
     {
         var value = (q - Math.Min(q, TemperatureQInc)) / (1.0f - TemperatureQInc);
-        var dCoef = MathF.Sin(depth * MathF.PI / 2) / 10;
+
+        //  sin(x * pi / 2) / 8
+        var dCoef = ((2 - (depth % 4)) * (depth % 2)) / 8.0f;
+
         return 1.0f + value * TemperatureScale + dCoef;
     }
 

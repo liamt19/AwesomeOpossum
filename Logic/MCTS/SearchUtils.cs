@@ -33,7 +33,8 @@ public static unsafe class SearchUtils
     public static float GetTemperatureAdjustment(uint depth, float q)
     {
         var value = (q - Math.Min(q, TemperatureQInc)) / (1.0f - TemperatureQInc);
-        return 1.0f + value * TemperatureScale;
+        var dCoef = MathF.Sin(depth * MathF.PI / 2) / 10;
+        return 1.0f + value * TemperatureScale + dCoef;
     }
 
     public static float PolicyForMove(Position pos, Move move)

@@ -33,8 +33,6 @@ namespace AwesomeOpossum.Logic.Threads
 
         public readonly Position RootPosition;
 
-        public BucketCache[] CachedBuckets;
-
         public SearchThreadPool AssocPool;
         public Tree Tree;
 
@@ -83,11 +81,6 @@ namespace AwesomeOpossum.Logic.Threads
         public void ThreadInit()
         {
             Quit = false;
-
-            const int CacheSize = ValueNetwork.INPUT_BUCKETS * 2;
-            CachedBuckets = new BucketCache[CacheSize];
-            for (int i = 0; i < CacheSize; i++)
-                CachedBuckets[i] = new();
 
             _SysThread.Name = "SearchThread " + ThreadIdx + ", ID " + Environment.CurrentManagedThreadId;
             if (IsMain)
@@ -244,7 +237,6 @@ namespace AwesomeOpossum.Logic.Threads
 
         public void Playout(ref SearchInformation _info)
         {
-            ValueNetwork.ResetCaches(this);
             ClearTree();
 
             PlayoutIteration = 0;

@@ -236,11 +236,6 @@ namespace AwesomeOpossum.Logic.Core
             //  The data within the accumulator will be copied, but each state needs its own pointer to its own accumulator.
             Unsafe.CopyBlock(NextState, State, (uint)StateInfo.StateCopySize);
 
-            if (UpdateNN)
-            {
-                //ValueNetwork.MakeMove(this, move);
-            }
-
             Hashes.Add(Hash);
             State++;
 

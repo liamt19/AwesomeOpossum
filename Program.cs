@@ -195,10 +195,6 @@ namespace AwesomeOpossum
                 {
                     break;
                 }
-                else if (input.StartsWithIgnoreCase("activations"))
-                {
-                    ValueNetwork.PrintActivationStats();
-                }
                 else
                 {
                     //  You can just copy paste in a FEN string rather than typing "position fen" before it.

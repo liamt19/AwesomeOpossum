@@ -106,8 +106,7 @@ public static unsafe class Iteration
 
         uint bestChild = tree.GetBestChildFunc(nodeIdx, (in Node n) => {
             var q = n.Visits == 0 ? fpu : n.QValue;
-            
-            var u = expl * n.PolicyValue / (1 + n.Visits);
+            var u = expl * n.ExplorationValue;
             return q + u;
         });
 

@@ -17,5 +17,8 @@
         public static int SEEValueBishop = 315;
         public static int SEEValueRook = 535;
         public static int SEEValueQueen = 970;
+
+        public static float TemperatureQInc = 0.75f;
+        public static float TemperatureScale = 0.25f;
     }
 }

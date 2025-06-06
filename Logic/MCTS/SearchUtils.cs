@@ -30,9 +30,10 @@ public static unsafe class SearchUtils
         return float.Exp(0.5f * float.Log10(Math.Max(node.Visits, 1)));
     }
 
-    public static float GetPST(uint depth, float q)
+    public static float GetTemperatureAdjustment(uint depth, float q)
     {
-        return 1.0f;
+        var value = (q - Math.Min(q, TemperatureQInc)) / (1.0f - TemperatureQInc);
+        return 1.0f + value * TemperatureScale;
     }
 
     public static float PolicyForMove(Position pos, Move move)

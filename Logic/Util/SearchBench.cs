@@ -14,6 +14,7 @@
             info.OnIterationUpdate = null;
             info.OnSearchFinish = null;
 
+            TimeManager.RemoveSoftLimit();
             TimeManager.SetHardLimit(20000);
 
             GlobalSearchPool.MainThread.WaitForThreadFinished();

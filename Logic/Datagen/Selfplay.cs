@@ -18,6 +18,7 @@ public static unsafe class Selfplay
     {
         SearchOptions.Hash = HashSize;
         SearchOptions.UCI_Chess960 = dfrc;
+        TimeManager.RemoveSoftLimit();
         TimeManager.RemoveHardLimit();
 
         Tree tree = new(HashSize);

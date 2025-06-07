@@ -38,6 +38,9 @@ public struct Node
         }
     }
 
+    public readonly float ExplorationValue => PolicyValue / (1 + Visits);
+
+
     public void Set(Move m, float p)
     {
         Clear();

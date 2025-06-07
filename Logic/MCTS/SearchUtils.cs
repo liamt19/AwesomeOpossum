@@ -27,7 +27,7 @@ public static unsafe class SearchUtils
 
     public static float GetExplorationScale(in Node node)
     {
-        return float.Exp(0.5f * float.Log10(Math.Max(node.Visits, 1)));
+        return float.Exp(0.5f * float.Log(Math.Max(node.Visits, 1)));
     }
 
     public static float GetTemperatureAdjustment(int depth, float q)

@@ -138,6 +138,11 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
+        [MethodImpl(Inline)] public static int FetchAdd(ref int location1, int value) => Interlocked.Add(ref location1, value) - value;
+        [MethodImpl(Inline)] public static uint FetchAdd(ref uint location1, uint value) => Interlocked.Add(ref location1, value) - value;
+        [MethodImpl(Inline)] public static ulong FetchAdd(ref ulong location1, ulong value) => Interlocked.Add(ref location1, value) - value;
+
+
         /// <summary>
         /// Allocates a block of memory of size <paramref name="byteCount"/>, aligned on the boundary <paramref name="alignment"/>,
         /// and clears the block before returning its address.

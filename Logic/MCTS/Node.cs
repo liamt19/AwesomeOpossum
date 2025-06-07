@@ -9,16 +9,19 @@ namespace AwesomeOpossum.Logic.MCTS;
 public struct Node
 {
     private const double Quantization =  16384.0 * 4;
+    private const double QuantSquared = Quantization * Quantization;
 
     public ulong SumQ;
+    public ulong SumSquareQ;
     public float PolicyValue;
+    public float Gini;
     public uint Visits;
 
     public uint FirstChild;
-    public byte NumChildren;
-
-    public NodeState State;
     public Move Move;
+    public NodeState State;
+
+    public byte NumChildren;
 
     public bool IsTerminal => State.Kind != NodeStateKind.Unterminated;
     public bool IsOngoing => State.Kind == NodeStateKind.Unterminated;
@@ -26,18 +29,13 @@ public struct Node
     public bool IsExpanded => (IsTerminal || HasChildren);
     public bool IsValid => (this != default);
 
-    public readonly float QValue
-    {
-        get
-        {
-            if (Visits == 0)
-                return 0.0f;
+    public readonly float QValue => (float)Q64;
+    private readonly double Q64 => Visits == 0 ? 0.0f : (SumQ / Visits) / Quantization;
 
-            double q = (SumQ / (double)Visits) / Quantization;
-            return (float)q;
-        }
-    }
+    public readonly double SquareQ => (SumSquareQ / Visits) / QuantSquared;
+    public readonly double Variance => (float)Math.Max(SquareQ - Math.Pow(Q64, 2), 0.0);
 
+    public readonly float Impurity => float.Clamp(Gini, 0.0f, 1.0f);
     public readonly float ExplorationValue => PolicyValue / (1 + Visits);
 
 
@@ -50,10 +48,9 @@ public struct Node
 
     public void Clear()
     {
-        PolicyValue = 0.0f;
-        Visits = 0;
-        SumQ = 0;
-        FirstChild = 0;
+        SumQ = SumSquareQ = 0;
+        PolicyValue = Gini = 0.0f;
+        Visits = FirstChild = 0;
         NumChildren = 0;
         State = NodeState.Unterminated;
         Move = Move.Null;
@@ -61,10 +58,10 @@ public struct Node
 
     public float Update(float? q)
     {
-        var nq = (ulong)((double)q * Quantization);
-        var oldV = Interlocked.Add(ref Visits, 1) - 1;
-        var oldQ = Interlocked.Add(ref SumQ, nq) - nq;
-        //SumQSq += (q * q);
+        var nq = (ulong)(q * Quantization);
+        var oldV = FetchAdd(ref Visits, 1);
+        var oldQ = FetchAdd(ref SumQ, nq);
+        FetchAdd(ref SumSquareQ, nq * nq);
 
         return (float)(((nq + oldQ) / (1.0 + oldV)) / Quantization);
     }

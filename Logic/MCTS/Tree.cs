@@ -135,13 +135,18 @@ public unsafe class Tree
             total += moves[i].Score;
         }
 
+        float gini = 0.0f;
         for (uint i = 0; i < count; i++)
         {
-            this[newPtr + i].Set(moves[i].Move, (moves[i].Score / total));
+            var policy = (moves[i].Score / total);
+
+            this[newPtr + i].Set(moves[i].Move, policy);
+            gini += (policy * policy);
         }
 
         thisNode.NumChildren = (byte)count;
         thisNode.FirstChild = newPtr;
+        thisNode.Gini = (1.0f - gini);
 
         return true;
     }

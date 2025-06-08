@@ -14,7 +14,7 @@ namespace AwesomeOpossum.Logic.Core
     [StructLayout(LayoutKind.Explicit)]
     public unsafe struct StateInfo
     {
-        public static readonly nuint StateCopySize = (nuint)Marshal.OffsetOf<StateInfo>(nameof(_pad0));
+        public static readonly nuint StateCopySize = (nuint)Marshal.OffsetOf<StateInfo>(nameof(Accumulator));
 
         [FieldOffset(  0)] public fixed ulong CheckSquares[PieceNB];
         [FieldOffset( 48)] public fixed ulong BlockingPieces[2];
@@ -27,17 +27,9 @@ namespace AwesomeOpossum.Logic.Core
         [FieldOffset(128)] public int HalfmoveClock = 0;
         [FieldOffset(132)] public int EPSquare = EPNone;
         [FieldOffset(136)] public int CapturedPiece = None;
-        [FieldOffset(140)] public int PliesFromNull = 0;
-        [FieldOffset(144)] public CastlingStatus CastleStatus = CastlingStatus.None;
-        [FieldOffset(148)] private fixed byte _pad0[4];
-        [FieldOffset(152)] public Accumulator* Accumulator;
+        [FieldOffset(140)] public CastlingStatus CastleStatus = CastlingStatus.None;
+        [FieldOffset(144)] public Accumulator* Accumulator;
 
-
-
-        public StateInfo()
-        {
-
-        }
-
+        public StateInfo() { }
     }
 }

@@ -240,7 +240,6 @@ namespace AwesomeOpossum.Logic.Core
             State++;
 
             State->HalfmoveClock++;
-            State->PliesFromNull++;
 
             if (ToMove == Black)
             {
@@ -816,6 +815,7 @@ namespace AwesomeOpossum.Logic.Core
 
         public void SetupForDFRC(int wIdx, int bIdx)
         {
+            IsChess960 = true;
             bb.Reset();
 
             for (int sq = A2; sq <= H2; sq++)
@@ -824,7 +824,6 @@ namespace AwesomeOpossum.Logic.Core
             for (int sq = A7; sq <= H7; sq++)
                 bb.AddPiece(sq, Black, Pawn);
 
-            IsChess960 = true;
             int* wBackrank = stackalloc int[8];
             int* bBackrank = stackalloc int[8];
 
@@ -846,6 +845,7 @@ namespace AwesomeOpossum.Logic.Core
                     State->KingSquares[Black] = A8 + sq;
             }
 
+            State->CastleStatus = CastlingStatus.None;
             for (int sq = 0; sq < 8; sq++)
             {
                 //  SetCastlingStatus needs State->KingSquare which might not be set yet if we do this in the above loop
@@ -854,6 +854,23 @@ namespace AwesomeOpossum.Logic.Core
 
                 if (bBackrank[sq] == Rook)
                     SetCastlingStatus(Black, A8 + sq);
+            }
+
+            FullMoves = 1;
+            State = StartingState;
+            NativeMemory.Clear(State, StateInfo.StateCopySize);
+            State->HalfmoveClock = 0;
+            State->EPSquare = EPNone;
+            State->CapturedPiece = None;
+            State->KingSquares[White] = bb.KingIndex(White);
+            State->KingSquares[Black] = bb.KingIndex(Black);
+
+            SetState();
+
+            if (UpdateNN)
+            {
+                ValueNetwork.RefreshAccumulator(this);
+                PolicyNetwork.RefreshPolicyAccumulator(this);
             }
         }
 
@@ -948,7 +965,6 @@ namespace AwesomeOpossum.Logic.Core
                 NativeMemory.Clear(State, StateInfo.StateCopySize);
                 State->CastleStatus = CastlingStatus.None;
                 State->HalfmoveClock = 0;
-                State->PliesFromNull = 0;
 
                 for (int i = 0; i < splits.Length; i++)
                 {

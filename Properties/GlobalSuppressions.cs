@@ -31,7 +31,7 @@ using System.Diagnostics.CodeAnalysis;
 [assembly: SuppressMessage("Usage", "CA2211:Non-constant fields should not be visible", Scope = "namespaceanddescendants", Target = "~N:AwesomeOpossum")]
 [assembly: SuppressMessage("Usage", "CA2201:Do not raise reserved exception types", Scope = "namespaceanddescendants", Target = "~N:AwesomeOpossum")]
 
-
+[assembly: SuppressMessage("Security", "CA5394:Do not use insecure randomness", Scope = "namespaceanddescendants", Target = "~N:AwesomeOpossum")]
 
 [assembly: SuppressMessage("Maintainability", "CA1508:Avoid dead conditional code", Scope = "namespaceanddescendants", Target = "~N:AwesomeOpossum")]
 [assembly: SuppressMessage("Maintainability", "CA1515:Consider making public types internal", Scope = "namespaceanddescendants", Target = "~N:AwesomeOpossum")]

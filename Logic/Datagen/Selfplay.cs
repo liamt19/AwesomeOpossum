@@ -25,9 +25,8 @@ public static unsafe class Selfplay
         ref var rootNode = ref tree.RootNode;
         SearchThread thread = new(0) { Tree = tree, IsDatagen = true };
         Position pos = thread.RootPosition;
-        ref Bitboard bb = ref pos.bb;
 
-        string fName = $"{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.bin";
+        string fName = $"{(dfrc ? "dfrc_" : "")}{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.bin";
         using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
         using var outWriter = new BinaryWriter(ostr);
 
@@ -37,18 +36,14 @@ public static unsafe class Selfplay
 
         MontyPack pack = new() { moves = sd };
 
-        ulong totalPositions = 0;
-        ulong totalNodes = 0;
-        ulong totalFill = 0;
-        ulong totalSearches = 0;
+        ulong totalPositions = 0, totalNodes = 0;
+        ulong totalFill = 0, totalSearches = 0;
 
         var info = SearchInformation.DatagenStandard(pos, softNodeLimit, (int)depthLimit);
-        var prelimInfo = SearchInformation.DatagenPrelim(pos, softNodeLimit, (int)depthLimit);
 
         for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
         {
-            GetStartPos(thread, ref pack, ref prelimInfo);
-            //sd.Clear();   //  Hopefully this is fine to skip
+            GetStartPos(thread, ref pack, dfrc);
 
             int moveNum = 0;
             NodeStateKind playoutState = NodeStateKind.Unterminated;
@@ -151,47 +146,74 @@ public static unsafe class Selfplay
     }
 
 
-
-    private static void GetStartPos(SearchThread thread, ref MontyPack pack, ref SearchInformation prelim)
+    // [35, 20, 20, 8, 12, 5]
+    private static ReadOnlySpan<int> PieceProbs => [35, 55, 75, 83, 95, 100];
+    private static void GetStartPos(SearchThread thread, ref MontyPack pack, bool dfrc)
     {
         Position pos = thread.RootPosition;
+        ref Bitboard bb = ref pos.bb;
 
         Random rand = ThreadRNG.Value;
         ScoredMove* legalMoves = stackalloc ScoredMove[MoveListSize];
 
+        Span<Move> candidates = stackalloc Move[MoveListSize];
+
+        int RandomPieceType()
+        {
+            var r = rand.Next(0, 100 + 1);
+            for (int j = 0; j < PieceNB; j++)
+                if (r <= PieceProbs[j])
+                    return j;
+
+            return 0;
+        } 
+
+        thread.SetStop(false);
+        thread.ClearTree();
         pack.Clear();
 
         while (true)
         {
-            thread.SetStop(false);
-
             Retry:
-            pos.LoadFromFEN(InitialFEN);
+
+            if (dfrc)
+                pos.SetupForDFRC(rand.Next(0, 960), rand.Next(0, 960));
+            else
+                pos.LoadFromFEN(InitialFEN);
 
             int randMoveCount = rand.Next(8, 9 + 1);
             for (int i = 0; i < randMoveCount; i++)
             {
                 int legals = pos.GenLegal(legalMoves);
-
                 if (legals == 0)
                     goto Retry;
 
-                Move rMove = legalMoves[rand.Next(0, legals)].Move;
-                pos.MakeMove(rMove);
+                Move toMake = Move.Null;
+                while (toMake == Move.Null)
+                {
+                    candidates.Clear();
+                    int ci = 0;
+
+                    int randomPt = RandomPieceType();
+                    for (int j = 0; j < legals; j++)
+                    {
+                        var m = legalMoves[j].Move;
+                        if (bb.GetPieceAtIndex(m.From) == randomPt)
+                            candidates[ci++] = m;
+                    }
+
+                    if (ci != 0)
+                        toMake = candidates[rand.Next(0, ci)];
+                }
+
+                pos.MakeMove(toMake);
             }
 
-            if (pos.GenLegal(legalMoves) == 0)
-                continue;
-
-            SetupThread(pos, thread);
-            thread.Playout(ref prelim);
-            var score = InvSigmoid(thread.Tree.GetBestAction(0).q);
-            if (Math.Abs(score) >= MaxOpeningScore)
+            if (!pos.HasLegalMoves())
                 continue;
 
             pack.startpos = MontyPosition.FromPosition(pos);
 
-            thread.ClearTree();
             return;
         }
     }

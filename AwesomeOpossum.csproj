@@ -17,9 +17,6 @@
     <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
     <GenerateDependencyFile>False</GenerateDependencyFile>
 
-    <AssemblyVersion>1.0.0</AssemblyVersion>
-    <NeutralLanguage>en</NeutralLanguage>
-
     <EnablePreviewFeatures>True</EnablePreviewFeatures>
     <LangVersion>Latest</LangVersion>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>

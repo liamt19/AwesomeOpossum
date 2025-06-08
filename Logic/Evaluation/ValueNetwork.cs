@@ -1,7 +1,4 @@
 ﻿
-//#define NO_PERM
-//#define PERM_COUNT
-
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -68,6 +65,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         public static void Initialize(string networkToLoad, bool exitIfFail = true)
         {
+            Console.WriteLine("ValueNetwork " + networkToLoad);
             using Stream netStream = NNUE.TryOpenFile(networkToLoad, exitIfFail);
 
             BinaryReader br;

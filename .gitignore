@@ -17,3 +17,6 @@
 /.vs/ProjectEvaluation
 *.dll
 *.so
+*.ilk
+*.lib
+*.exp

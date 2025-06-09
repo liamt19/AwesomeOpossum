@@ -77,6 +77,7 @@ inline vec_i16 vec_setzero_epi16() { return _mm256_setzero_si256(); }
 inline vec_i16 vec_maddubs_epi16(const vec_i8 a, const vec_i8 b) { return _mm256_maddubs_epi16(a, b); }
 inline vec_i16 vec_add_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_add_epi16(a, b); }
 inline vec_i16 vec_sub_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_sub_epi16(a, b); }
+inline vec_i16 vec_mullo_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_mullo_epi16(a, b); }
 inline vec_i16 vec_mulhi_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_mulhi_epi16(a, b); }
 inline vec_i16 vec_slli_epi16(const vec_i16 a, const i16 i) { return _mm256_slli_epi16(a, i); }
 inline vec_i16 vec_min_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_min_epi16(a, b); }
@@ -84,6 +85,7 @@ inline vec_i16 vec_max_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_m
 inline vec_i16 vec_load_epi16(const vec_i16* a) { return _mm256_load_si256(a); }
 inline void vec_storeu_i16(vec_i16* a, const vec_i16 b) { _mm256_storeu_si256(a, b); }
 
+inline vec_i32 vec_setzero_epi32() { return _mm256_setzero_si256(); }
 inline vec_i32 vec_set1_epi32(const i32 a) { return _mm256_set1_epi32(a); }
 inline vec_i32 vec_add_epi32(const vec_i32 a, const vec_i32 b) { return _mm256_add_epi32(a, b); }
 inline vec_i32 vec_madd_epi16(const vec_i16 a, const vec_i16 b) { return _mm256_madd_epi16(a, b); }
@@ -101,6 +103,21 @@ inline vec_i32 vec_dpbusd_epi32(const vec_i32 sum, const vec_i8 vec0, const vec_
     const vec_i16 product16 = vec_maddubs_epi16(vec0, vec1);
     const vec_i32 product32 = vec_madd_epi16(product16, vec_set1_epi16(1));
     return vec_add_epi32(sum, product32);
+}
+
+inline i32 vec_hsum_8x32(const vec_i32 v) {
+    const auto hi = _mm256_extracti128_si256(v, 1);
+    const auto lo = _mm256_castsi256_si128(v);
+
+    const auto sum128 = _mm_add_epi32(hi, lo);
+
+    const auto high64 = _mm_unpackhi_epi64(sum128, sum128);
+    const auto sum64 = _mm_add_epi32(sum128, high64);
+
+    const auto high32 = _mm_shuffle_epi32(sum64, _MM_SHUFFLE(2, 3, 0, 1));
+    const auto sum32 = _mm_add_epi32(sum64, high32);
+
+    return _mm_cvtsi128_si32(sum32);
 }
 
 #endif

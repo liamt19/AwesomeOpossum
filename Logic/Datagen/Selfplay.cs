@@ -32,7 +32,6 @@ public static unsafe class Selfplay
 
         Span<(Move move, uint visits)> distSpan = new (Move move, uint visits)[256];
         Span<SearchData> sd = stackalloc SearchData[MontyPack.MaxSize];
-        ScoredMove* legalMoves = stackalloc ScoredMove[MoveListSize];
 
         MontyPack pack = new() { moves = sd };
 
@@ -53,18 +52,11 @@ public static unsafe class Selfplay
                 thread.Reset();
                 thread.SetStop(false);
 
-                int nLegalMoves = pos.GenLegal(legalMoves);
-                if (nLegalMoves == 0)
-                {
-                    playoutState = pos.PlayoutState().Kind;
-                    break;
-                }
-
                 thread.Playout(ref info);
 
-                var (idx, move, scoreSig) = tree.GetBestAction(0);
-                var score = (int)InvSigmoid(scoreSig);
+                var (move, scoreSig) = tree.BestRootAction;
                 var children = tree.ChildrenOf(rootNode);
+                int nLegalMoves = rootNode.NumChildren;
 
                 totalSearches++;
                 totalNodes += (ulong)nLegalMoves;
@@ -94,10 +86,7 @@ public static unsafe class Selfplay
                 playoutState = pos.PlayoutState().Kind;
 
                 if (pack.IsAtMoveLimit)
-                {
                     playoutState = NodeStateKind.Draw;
-                    break;
-                }
             }
 
             float result = playoutState switch

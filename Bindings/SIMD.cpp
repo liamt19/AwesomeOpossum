@@ -1,15 +1,9 @@
 
 #include <immintrin.h>
 #include <xmmintrin.h>
-#include <stdint.h>
-#include <iostream>
-#include <array>
-#include <span>
-#include <bit>
 
-#include "simd.h"
-#include "arch.h"
 #include "defs.h"
+#include "simd.h"
 
 #if defined(_MSC_VER)
 #define DLL_EXPORT extern "C" __declspec(dllexport)
@@ -17,149 +11,90 @@
 #define DLL_EXPORT extern "C"
 #endif
 
-DLL_EXPORT void SetupNNZ();
+constexpr auto POLICY_L1_SIZE = 256;
 
-DLL_EXPORT void EvaluateBound(const i16* us, const i16* them,
-                              const    i8* L1Weights, const float* L1Biases,
-                              const float* L2Weights, const float* L2Biases,
-                              const float* L3weights, const float  L3bias,
-                              int& L3Output);
+constexpr auto VALUE_L1_SIZE = 512;
+constexpr auto VALUE_QA = 255;
+constexpr auto VALUE_QB = 64;
 
-struct NNZTable {
-    __m128i Entries[256];
-};
-NNZTable nnzTable;
+DLL_EXPORT i32 PolicyEvaluate(const i16* us, const i16* them, const i16* L1Weights, const i16* L1Biases) {
 
-DLL_EXPORT void SetupNNZ()  {
-    for (u32 i = 0; i < 256; i++) {
-        u16* ptr = reinterpret_cast<u16*>(&nnzTable.Entries[i]);
+    vec_i32 sum = vec_setzero_epi32();
 
-        u32 j = i;
-        u32 k = 0;
-        while (j != 0) {
-            u32 lsbIndex = std::countr_zero(j);
-            j &= j - 1;
-            ptr[k++] = (u16)lsbIndex;
-        }
-    }
-}
+    const auto stmData = reinterpret_cast<const vec_i16*>(us);
+    const auto ntmData = reinterpret_cast<const vec_i16*>(them);
 
-DLL_EXPORT void EvaluateBound(const i16* us, const i16* them, 
-                              const i8* L1Weights, const float* L1Biases, 
-                              const float* L2Weights, const float* L2Biases, 
-                              const float* L3weights, const float L3bias, 
-                              i32& L3Output) {
-    
-    i32 nnzCount = 0;
-    u16 nnzIndices[L1_SIZE / L1_CHUNK_PER_32] alignas(32);
-    i8 FTOutputs[L1_SIZE] alignas(32);
+    const auto stmWeights = reinterpret_cast<const vec_i16*>(&L1Weights[0]);
+    const auto ntmWeights = reinterpret_cast<const vec_i16*>(&L1Weights[POLICY_L1_SIZE]);
 
-    vec_i32 L1Temp[L2_SIZE / I32_CHUNK_SIZE] alignas(32) = {};
-    float L1Outputs[L2_SIZE] alignas(32);
+    constexpr auto SIMD_CHUNKS = POLICY_L1_SIZE / (sizeof(vec_i16) / sizeof(i16));
 
-    vec_ps L2Outputs[L3_SIZE / F32_CHUNK_SIZE] alignas(32);
+    for (i32 i = 0; i < SIMD_CHUNKS; i += 2) {
+        const auto m0 = vec_mullo_epi16(stmData[i + 0], stmWeights[i + 0]);
+        const auto m1 = vec_mullo_epi16(stmData[i + 1], stmWeights[i + 1]);
 
-    //  FT
-    {
-        const auto ft_zero = vec_setzero_epi16();
-        const auto ft_one = vec_set1_epi16(FT_QUANT);
-        const vec_128i baseInc = _mm_set1_epi16(u16(8));
-        vec_128i baseVec = _mm_setzero_si128();
-        i32 offset = 0;
+        const auto s0 = vec_madd_epi16(m0, stmData[i + 0]);
+        const auto s1 = vec_madd_epi16(m1, stmData[i + 1]);
 
-        for (const auto acc : { us, them }) {
-            for (i32 i = 0; i < L1_PAIR_COUNT; i += (I16_CHUNK_SIZE * 2)) {
-                const auto input0a = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 0 * I16_CHUNK_SIZE + 0]));
-                const auto input0b = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 1 * I16_CHUNK_SIZE + 0]));
-
-                const auto input1a = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 0 * I16_CHUNK_SIZE + L1_PAIR_COUNT]));
-                const auto input1b = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 1 * I16_CHUNK_SIZE + L1_PAIR_COUNT]));
-
-                const auto clipped0a = vec_min_epi16(vec_max_epi16(input0a, ft_zero), ft_one);
-                const auto clipped0b = vec_min_epi16(vec_max_epi16(input0b, ft_zero), ft_one);
-
-                const auto clipped1a = vec_min_epi16(input1a, ft_one);
-                const auto clipped1b = vec_min_epi16(input1b, ft_one);
-
-                const auto producta = vec_mulhi_epi16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
-                const auto productb = vec_mulhi_epi16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
-
-                const auto product_one = vec_packus_epi16(producta, productb);
-                vec_storeu_epi8(reinterpret_cast<vec_i8*>(&FTOutputs[offset + i]), product_one);
-
-                const auto nnz_mask = vec_nnz_mask(product_one);
-
-                for (i32 j = 0; j < NNZ_OUTPUTS_PER_CHUNK; j++) {
-                    i32 lookup = (nnz_mask >> (j * 8)) & 0xFF;
-                    auto offsets = nnzTable.Entries[lookup];
-                    _mm_storeu_si128(reinterpret_cast<vec_128i*>(&nnzIndices[nnzCount]), _mm_add_epi16(baseVec, offsets));
-
-                    nnzCount += std::popcount(static_cast<u32>(lookup));
-                    baseVec = _mm_add_epi16(baseVec, baseInc);
-                }
-
-            }
-
-            offset += L1_PAIR_COUNT;
-        }
+        sum = vec_add_epi32(sum, vec_add_epi32(s0, s1));
     }
 
+    for (i32 i = 0; i < SIMD_CHUNKS; i += 2) {
+        const auto m0 = vec_mullo_epi16(ntmData[i + 0], ntmWeights[i + 0]);
+        const auto m1 = vec_mullo_epi16(ntmData[i + 1], ntmWeights[i + 1]);
 
-    //  L1
-    {
-        i8* L1Inputs = FTOutputs;
-        const auto inputs32 = (i32*)(FTOutputs);
-        for (i32 i = 0; i < nnzCount; i++) {
-            const auto index = nnzIndices[i];
-            const auto input32 = vec_set1_epi32(inputs32[index]);
-            const auto weight = reinterpret_cast<const vec_i8*>(&L1Weights[index * L1_CHUNK_PER_32 * L2_SIZE]);
-            for (i32 k = 0; k < L2_SIZE / F32_CHUNK_SIZE; k++)
-                L1Temp[k] = vec_dpbusd_epi32(L1Temp[k], input32, weight[k]);
-        }
+        const auto s0 = vec_madd_epi16(m0, ntmData[i + 0]);
+        const auto s1 = vec_madd_epi16(m1, ntmData[i + 1]);
 
-        const auto zero = vec_set1_ps(0.0f);
-        const auto one = vec_set1_ps(1.0f);
-        const auto sumMul = vec_set1_ps(L1_MUL);
-        for (i32 i = 0; i < L2_SIZE / F32_CHUNK_SIZE; ++i) {
-            const auto biasVec = vec_loadu_ps(&L1Biases[i * F32_CHUNK_SIZE]);
-            const auto sumPs = vec_fmadd_ps(vec_cvtepi32_ps(L1Temp[i]), sumMul, biasVec);
-            const auto clipped = vec_min_ps(vec_max_ps(sumPs, zero), one);
-            const auto squared = vec_mul_ps(clipped, clipped);
-            vec_storeu_ps(&L1Outputs[i * F32_CHUNK_SIZE], squared);
-        }
+        sum = vec_add_epi32(sum, vec_add_epi32(s0, s1));
     }
 
-
-    //  L2
-    {
-        float* L2Inputs = L1Outputs;
-        for (i32 i = 0; i < L3_SIZE / F32_CHUNK_SIZE; ++i)
-            L2Outputs[i] = vec_loadu_ps(&L2Biases[i * F32_CHUNK_SIZE]);
-
-        for (i32 i = 0; i < L2_SIZE; ++i) {
-            const auto inputVec = vec_set1_ps(L2Inputs[i]);
-            const auto weight = reinterpret_cast<const vec_ps*>(&L2Weights[i * L3_SIZE]);
-            for (i32 j = 0; j < L3_SIZE / F32_CHUNK_SIZE; ++j)
-                L2Outputs[j] = vec_fmadd_ps(inputVec, weight[j], L2Outputs[j]);
-        }
-    }
-
-
-    //  L3
-    {
-        auto l3Sum = vec_set1_ps(0.0f);
-        const auto zero = vec_set1_ps(0.0f);
-        const auto one = vec_set1_ps(1.0f);
-        for (i32 i = 0; i < L3_SIZE / F32_CHUNK_SIZE; ++i) {
-            const auto clipped = vec_min_ps(vec_max_ps(L2Outputs[i], zero), one);
-            const auto squared = vec_mul_ps(clipped, clipped);
-
-            const auto weightVec = vec_loadu_ps(&L3weights[i * F32_CHUNK_SIZE]);
-            l3Sum = vec_fmadd_ps(squared, weightVec, l3Sum);
-        }
-
-        L3Output = static_cast<i32>((L3bias + vec_hsum_ps(l3Sum)) * OutputScale);
-    }
+    i32 output = vec_hsum_8x32(sum);
+    return output;
 }
 
 
+
+DLL_EXPORT i32 ValueEvaluate(const i16* us, const i16* them, const i16* L1Weights, const i16 L1Bias) {
+
+    vec_i32 sum = vec_setzero_epi32();
+    const auto zero = vec_set1_epi16(0);
+    const auto one = vec_set1_epi16(VALUE_QA);
+
+    const auto stmData = reinterpret_cast<const vec_i16*>(us);
+    const auto ntmData = reinterpret_cast<const vec_i16*>(them);
+
+    const auto stmWeights = reinterpret_cast<const vec_i16*>(&L1Weights[0]);
+    const auto ntmWeights = reinterpret_cast<const vec_i16*>(&L1Weights[VALUE_L1_SIZE]);
+
+    constexpr auto SIMD_CHUNKS = VALUE_L1_SIZE / (sizeof(vec_i16) / sizeof(i16));
+
+    for (i32 i = 0; i < SIMD_CHUNKS; i += 2) {
+        const auto v0 = vec_min_epi16(one, vec_max_epi16(stmData[i + 0], zero));
+        const auto v1 = vec_min_epi16(one, vec_max_epi16(stmData[i + 1], zero));
+
+        const auto m0 = vec_mullo_epi16(v0, stmWeights[i + 0]);
+        const auto m1 = vec_mullo_epi16(v1, stmWeights[i + 1]);
+
+        const auto s0 = vec_madd_epi16(m0, v0);
+        const auto s1 = vec_madd_epi16(m1, v1);
+
+        sum = vec_add_epi32(sum, vec_add_epi32(s0, s1));
+    }
+
+    for (i32 i = 0; i < SIMD_CHUNKS; i += 2) {
+        const auto v0 = vec_min_epi16(one, vec_max_epi16(ntmData[i + 0], zero));
+        const auto v1 = vec_min_epi16(one, vec_max_epi16(ntmData[i + 1], zero));
+
+        const auto m0 = vec_mullo_epi16(v0, ntmWeights[i + 0]);
+        const auto m1 = vec_mullo_epi16(v1, ntmWeights[i + 1]);
+
+        const auto s0 = vec_madd_epi16(m0, v0);
+        const auto s1 = vec_madd_epi16(m1, v1);
+
+        sum = vec_add_epi32(sum, vec_add_epi32(s0, s1));
+    }
+
+    i32 output = vec_hsum_8x32(sum);
+    return (((output / VALUE_QA) + L1Bias) * 400) / (VALUE_QA * VALUE_QB);
+}

@@ -21,9 +21,11 @@ public unsafe class Tree
     public bool IsEmpty => Filled == 0;
 
     public uint FillLevel => (uint)((1000 * Filled) / NodesLength);
-    public Move BestRootMove => GetBestAction(0).move;
     public Span<Node> NodeSpan => new(Nodes, (int)NodesLength);
     public ref Node RootNode => ref this[0];
+
+    public Move BestRootMove => GetBestAction(0).move;
+    public (Move bm, float q) BestRootAction { get { var (_, move, q) = GetBestAction(0); return (move, q); } }
 
     public ref Node this[uint idx] => ref Nodes[idx];
 

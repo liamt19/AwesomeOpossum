@@ -26,7 +26,7 @@ else
 endif
 
 FULL_EXE_PATH = $(EXE)$(BINARY_SUFFIX)
-BINDINGS_FILE = HorsieBindings.$(DLL_SUFF)
+BINDINGS_FILE = SIMDBindings.$(DLL_SUFF)
 RM_PDB = -$(RM_FILE_CMD) $(EXE).$(PDB_SUFF)
 RM_BLD_FOLDER = -cd bin && $(RM_FOLDER_CMD) Release && cd ..
 RM_OBJ_FOLDER = -$(RM_FOLDER_CMD) obj
@@ -72,12 +72,12 @@ BUILD_OPTS := --self-contained -v quiet -p:WarningLevel=0 $(OUT_DIR) -c Release 
 AOT_OPTS = -p:PublishAOT=true -p:PublishSingleFile=false -p:IS_AOT=true -p:IlcInstructionSet=$(INST_SET)
 
 
-.PHONY: release
+.PHONY: release FORCE
 .DEFAULT_GOAL := release
 
 
-$(BINDINGS_FILE):
-	-g++ -std=c++20 -O3 -funroll-loops -march=x86-64-v3 -fPIC -shared -o $(BINDINGS_FILE) ./Bindings/simd.cpp
+$(BINDINGS_FILE): FORCE
+	-clang++ -std=c++20 -O3 -funroll-loops -march=x86-64-v3 -shared -o $(BINDINGS_FILE) ./Bindings/simd.cpp
 bindings: $(BINDINGS_FILE)
 
 
@@ -116,3 +116,6 @@ clean:
 	$(RM_OBJ_FOLDER)
 	$(RM_BLD_FOLDER)
 	$(RM_PDB)
+	
+FORCE:
+	

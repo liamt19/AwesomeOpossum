@@ -1,8 +1,7 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
-#include <array>
-#include <span>
 
 using nuint = std::size_t;
 

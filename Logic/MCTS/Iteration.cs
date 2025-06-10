@@ -27,15 +27,7 @@ public static unsafe class Iteration
             if (node.Visits == 0)
                 node.State = pos.PlayoutState();
 
-            if (!node.IsTerminal && tree.TT.Probe(hash, out TTEntry* tte))
-            {
-                u = tte->Q;
-            }
-            else
-            {
-                u = GetNodeValue(pos, nodeIdx);
-            }
-
+            u = GetNodeValue(pos, nodeIdx);
         }
         else
         {

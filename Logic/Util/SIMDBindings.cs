@@ -68,11 +68,9 @@ namespace AwesomeOpossum.Logic.Util
 
 
         [LibraryImport(DEST_NAME, EntryPoint = "PolicyEvaluate")]
-        [SuppressGCTransition]
-        public static partial int EvaluatePolicy(short* us, short* them, short* L1Weights, short* L1Biases);
+        public static partial int EvaluatePolicy(short* us, short* them, short* L1Weights);
 
         [LibraryImport(DEST_NAME, EntryPoint = "ValueEvaluate")]
-        [SuppressGCTransition]
         public static partial int EvaluateValue(short* us, short* them, short* L1Weights, short L1Biases);
     }
 }

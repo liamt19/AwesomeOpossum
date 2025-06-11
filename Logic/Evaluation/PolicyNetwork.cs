@@ -186,10 +186,10 @@ namespace AwesomeOpossum.Logic.Evaluation
             {
                 var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
                 var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
-                var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE * 2];
+                var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
                 var l1Biases = &Net.L1Biases[moveIndex];
 
-                output = SIMDBindings.EvaluatePolicy(stmData, ntmData, l1Weights, l1Biases);
+                output = SIMDBindings.EvaluatePolicy(stmData, ntmData, l1Weights);
             }
             else
             {

@@ -65,7 +65,6 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         public static void Initialize(string networkToLoad, bool exitIfFail = true)
         {
-            Console.WriteLine("ValueNetwork " + networkToLoad);
             using Stream netStream = NNUE.TryOpenFile(networkToLoad, exitIfFail);
 
             BinaryReader br;

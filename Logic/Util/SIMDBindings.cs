@@ -27,7 +27,7 @@ namespace AwesomeOpossum.Logic.Util
 
             try
             {
-                if (!ExtractEmbeddedLibrary(resName, DEST_NAME))
+                if (!ExtractEmbeddedLibrary(resName, DEST_NAME) && !File.Exists(absPath))
                 {
                     return;
                 }
@@ -60,8 +60,11 @@ namespace AwesomeOpossum.Logic.Util
             string exePath = Path.GetDirectoryName(AppContext.BaseDirectory);
             string dllPath = Path.Combine(exePath, fileName);
 
-            using FileStream fs = new(dllPath, FileMode.Create, FileAccess.Write);
-            stream.CopyTo(fs);
+            try
+            {
+                using FileStream fs = new(dllPath, FileMode.Create, FileAccess.Write);
+                stream.CopyTo(fs);
+            } catch (IOException _) { return true; } // This is fine if the file is in use
 
             return true;
         }

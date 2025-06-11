@@ -1,4 +1,5 @@
 ﻿
+using AwesomeOpossum.Logic.Data;
 using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -24,7 +25,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         public const int INPUT_BUCKETS = 1;
         public const int INPUT_SIZE = 768;
-        public const int L1_SIZE = 256;
+        public const int L1_SIZE = 512;
         public const int OUTPUT_SIZE = 1880;
         public const int OUTPUT_BUCKETS = 1;
 
@@ -35,7 +36,7 @@ namespace AwesomeOpossum.Logic.Evaluation
         public const int N_FTW = INPUT_SIZE * L1_SIZE * INPUT_BUCKETS;
         public const int N_FTB = L1_SIZE;
 
-        public const int N_L1W = L1_SIZE * 2 * OUTPUT_BUCKETS * OUTPUT_SIZE;
+        public const int N_L1W = L1_SIZE * OUTPUT_BUCKETS * OUTPUT_SIZE;
         public const int N_L1B = OUTPUT_BUCKETS * OUTPUT_SIZE;
 
         private static readonly PolicyNetContainer<short, short> Net;
@@ -204,26 +205,26 @@ namespace AwesomeOpossum.Logic.Evaluation
         {
             var sum = Vector256<int>.Zero;
 
-            var stmData = pos.PolicyAccumulator[pos.ToMove];
-            var ntmData = pos.PolicyAccumulator[Not(pos.ToMove)];
-            var stmWeights = (Vector256<short>*)&Net.L1Weights[(moveIndex * L1_SIZE * 2)];
-            var ntmWeights = (Vector256<short>*)&Net.L1Weights[(moveIndex * L1_SIZE * 2) + L1_SIZE];
+            int Stride = (L1_SIZE / Vector256<short>.Count) / 2;
 
-            int SimdChunks = L1_SIZE / Vector256<short>.Count;
-            for (int i = 0; i < SimdChunks; i++)
+            var data0 = pos.PolicyAccumulator[pos.ToMove];
+            var data1 = &data0[Stride];
+            var weights = (Vector256<short>*)(&Net.L1Weights[moveIndex * L1_SIZE]);
+            for (int i = 0; i < Stride; i++)
             {
-                Vector256<short> mult = stmData[i] * stmWeights[i];
-                (var mLo, var mHi) = Vector256.Widen(mult);
-                (var cLo, var cHi) = Vector256.Widen(stmData[i]);
+                (var mLo, var mHi) = Vector256.Widen(data0[i] * weights[i]);
+                (var cLo, var cHi) = Vector256.Widen(data1[i]);
 
                 sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
             }
 
-            for (int i = 0; i < SimdChunks; i++)
+            data0 = pos.PolicyAccumulator[Not(pos.ToMove)];
+            data1 = &data0[Stride];
+            weights = (Vector256<short>*)(&Net.L1Weights[(moveIndex * L1_SIZE) + L1_SIZE / 2]);
+            for (int i = 0; i < Stride; i++)
             {
-                Vector256<short> mult = ntmData[i] * ntmWeights[i];
-                (var mLo, var mHi) = Vector256.Widen(mult);
-                (var cLo, var cHi) = Vector256.Widen(ntmData[i]);
+                (var mLo, var mHi) = Vector256.Widen(data0[i] * weights[i]);
+                (var cLo, var cHi) = Vector256.Widen(data1[i]);
 
                 sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
             }

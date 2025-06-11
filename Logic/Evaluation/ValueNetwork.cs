@@ -141,11 +141,28 @@ namespace AwesomeOpossum.Logic.Evaluation
         public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
         public static int Evaluate(Position pos, int outputBucket)
         {
-            int ev = GetEvaluation(pos, outputBucket);
-            return int.Clamp(ev, ScoreTTLoss + 1, ScoreTTWin - 1);
+            int output;
+            if (SIMDBindings.HasBindings)
+            {
+                ref Accumulator accumulator = ref *pos.State->Accumulator;
+                RefreshAccumulator(pos);
+
+                var stmData = (short*)accumulator[pos.ToMove];
+                var ntmData = (short*)accumulator[Not(pos.ToMove)];
+                var l1Weights = &Net.L1Weights[outputBucket * L1_SIZE * 2];
+                var l1Bias = Net.L1Biases[outputBucket];
+
+                output = SIMDBindings.EvaluateValue(stmData, ntmData, l1Weights, l1Bias);
+            }
+            else
+            {
+                output = DoEvaluate(pos, outputBucket);
+            }
+
+            return int.Clamp(output, ScoreTTLoss + 1, ScoreTTWin - 1);
         }
 
-        private static int GetEvaluation(Position pos, int outputBucket)
+        private static int DoEvaluate(Position pos, int outputBucket)
         {
             ref Accumulator accumulator = ref *pos.State->Accumulator;
             RefreshAccumulator(pos);

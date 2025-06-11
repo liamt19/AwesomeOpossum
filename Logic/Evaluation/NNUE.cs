@@ -38,7 +38,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                     if (res.ToLower().Contains("properties"))
                         continue;
 
-                    if (!res.EndsWith(".dll") && !res.EndsWith(".so") && !res.Contains("HorsieBindings") && res.Contains(networkToLoad))
+                    if (!res.EndsWith(".dll") && !res.EndsWith(".so") && !res.Contains("SIMDBindings") && res.Contains(networkToLoad))
                     {
                         Stream stream = asm.GetManifestResourceStream(res);
                         if (stream != null)

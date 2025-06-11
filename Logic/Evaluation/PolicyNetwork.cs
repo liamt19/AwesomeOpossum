@@ -107,8 +107,8 @@ namespace AwesomeOpossum.Logic.Evaluation
         {
             ref Bitboard bb = ref pos.bb;
 
-            var wAccumulation = pos.PolicyAccumulator[White];
-            var bAccumulation = pos.PolicyAccumulator[Black];
+            var wAccumulation = (short*)pos.PolicyAccumulator[White];
+            var bAccumulation = (short*)pos.PolicyAccumulator[Black];
             Unsafe.CopyBlock(wAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
             Unsafe.CopyBlock(bAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
 
@@ -121,8 +121,9 @@ namespace AwesomeOpossum.Logic.Evaluation
 
                 var wIdx = FeatureIndex(pc, pt, pieceIdx, White);
                 var bIdx = FeatureIndex(pc, pt, pieceIdx, Black);
-                PolicyUnrollThings.Add((short*)wAccumulation, (short*)wAccumulation, &Net.FTWeights[wIdx]);
-                PolicyUnrollThings.Add((short*)bAccumulation, (short*)bAccumulation, &Net.FTWeights[bIdx]);
+
+                PolicyUnrollThings.Add(wAccumulation, wAccumulation, &Net.FTWeights[wIdx]);
+                PolicyUnrollThings.Add(bAccumulation, bAccumulation, &Net.FTWeights[bIdx]);
             }
 
             int N = Vector256<short>.Count;
@@ -131,10 +132,12 @@ namespace AwesomeOpossum.Logic.Evaluation
             var zero = Vector256<short>.Zero;
             var one = Vector256.Create((short)QA);
 
+            var wVecs = (Vector256<short>*)wAccumulation;
+            var bVecs = (Vector256<short>*)bAccumulation;
             for (int i = 0; i < SimdChunks; i++)
             {
-                wAccumulation[i] = Vector256.Clamp(wAccumulation[i], zero, one);
-                bAccumulation[i] = Vector256.Clamp(bAccumulation[i], zero, one);
+                wVecs[i] = Vector256.Clamp(wVecs[i], zero, one);
+                bVecs[i] = Vector256.Clamp(bVecs[i], zero, one);
             }
         }
 
@@ -177,9 +180,30 @@ namespace AwesomeOpossum.Logic.Evaluation
             int ksq = pos.State->KingSquares[pos.ToMove];
             int moveIndex = MoveIndex(m, pos.ToMove, ksq);
 
+            int output;
+
+            if (SIMDBindings.HasBindings)
+            {
+                var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
+                var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
+                var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
+                var l1Biases = &Net.L1Biases[moveIndex];
+
+                output = SIMDBindings.EvaluatePolicy(stmData, ntmData, l1Weights);
+            }
+            else
+            {
+                output = DoEvaluate(pos, moveIndex);
+            }
+
+            var rv = (((float)output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
+            return rv;
+        }
+
+
+        public static int DoEvaluate(Position pos, int moveIndex)
+        {
             var sum = Vector256<int>.Zero;
-            var zero = Vector256<short>.Zero;
-            var one = Vector256.Create((short)QA);
 
             int Stride = (L1_SIZE / Vector256<short>.Count) / 2;
 
@@ -205,10 +229,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                 sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
             }
 
-            var output = (float)Vector256.Sum(sum);
-            output = ((output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
-
-            return output;
+            return Vector256.Sum(sum);
         }
 
 

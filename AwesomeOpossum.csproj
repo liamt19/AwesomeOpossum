@@ -64,111 +64,52 @@
   </ItemGroup>
 
 
-  <!-- Network files are stored with the .bin extension in the network repository.
-       If an EVALFILE isn't explicitly given, then we'll try to download the file from the repository, and append .bin to the name given in value.txt
-  -->
+
   <PropertyGroup>
-    <EFileExt></EFileExt>
+    <ReadEvalFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)value.txt))</ReadEvalFile>
+    <EVALFILE_NAME Condition="'$(EVALFILE)' == ''">$(ReadEvalFile.Trim())</EVALFILE_NAME>
+    <EVALFILE Condition="'$(EVALFILE)' == ''">$(EVALFILE_NAME).bin</EVALFILE>
+    <EVAL_NETWORK_URL>https://github.com/liamt19/opossum-nets/releases/download/$(EVALFILE_NAME)/$(EVALFILE)</EVAL_NETWORK_URL>
+
+    <ReadPolicyFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)policy.txt))</ReadPolicyFile>
+    <POLICYFILE_NAME Condition="'$(POLICYFILE)' == ''">$(ReadPolicyFile.Trim())</POLICYFILE_NAME>
+    <POLICYFILE Condition="'$(POLICYFILE)' == ''">$(POLICYFILE_NAME).bin</POLICYFILE>
+    <POLICY_NETWORK_URL>https://github.com/liamt19/opossum-nets/releases/download/$(POLICYFILE_NAME)/$(POLICYFILE)</POLICY_NETWORK_URL>
   </PropertyGroup>
 
-  
-  <!-- PreBuildEvent is early enough that the EmbedValueFile target works properly
-       but late enough that VS doesn't constantly try to download the file
-  -->
-  <Target Name="SetValueFile" BeforeTargets="PreBuildEvent" Condition="'$(EVALFILE)' == ''">
-    <PropertyGroup>
-      <EVALFILE>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)value.txt))</EVALFILE>
-    </PropertyGroup>
-    
-    <CreateProperty Value=".bin">
-      <Output TaskParameter="Value" PropertyName="EFileExt" />
-    </CreateProperty>
+  <Target Name="DownloadContentFiles" BeforeTargets="PreBuildEvent">
+    <Message Condition="!Exists('$(EVALFILE)')" Importance="High" Text="Downloading value file $(EVALFILE) from $(EVAL_NETWORK_URL)" />
+    <DownloadFile Condition="!Exists('$(EVALFILE)')" SourceUrl="$(EVAL_NETWORK_URL)" DestinationFolder="$(MSBuildThisFileDirectory)">
+      <Output TaskParameter="DownloadedFile" ItemName="Content" />
+    </DownloadFile>
 
-    <Message Text="EVALFILE (ValueNetwork) set to $(EVALFILE)" Importance="high" />
-  </Target>
-
-  
-  <!-- Download the network file if it doesn't already exist, and place it into the current directory
-  -->
-  <Target Name="DownloadValueFile" AfterTargets="SetValueFile" Condition="!Exists('$(EVALFILE)$(EFileExt)')">
-    <PropertyGroup>
-      <NetworkFileURL>https://github.com/liamt19/opossum-nets/releases/download/$(EVALFILE)/$(EVALFILE)$(EFileExt)</NetworkFileURL>
-    </PropertyGroup>
-
-    <Message Text="Downloading $(NetworkFileURL) into $(MSBuildThisFileDirectory)" Importance="high" />
-
-    <DownloadFile SourceUrl="$(NetworkFileURL)" DestinationFolder="$(MSBuildThisFileDirectory)">
+    <Message Condition="!Exists('$(POLICYFILE)')" Importance="High" Text="Downloading policy file $(POLICYFILE) from $(POLICY_NETWORK_URL)" />
+    <DownloadFile Condition="!Exists('$(POLICYFILE)')" SourceUrl="$(POLICY_NETWORK_URL)" DestinationFolder="$(MSBuildThisFileDirectory)">
       <Output TaskParameter="DownloadedFile" ItemName="Content" />
     </DownloadFile>
   </Target>
 
-  
-  <!-- Embed the file here, after reading network.txt (if EVALFILE wasn't provided) and downloading it (if necessary).
-       Also set ValueFileAttribute so we know what the file is named
-  -->
-  <Target Name="EmbedValueFile" AfterTargets="DownloadValueFile;SetValueFile">
-    <Message Text="Embedding $(EVALFILE)$(EFileExt) as a resource" Importance="high" />
-
+  <Target Name="EmbedNetworkFiles" AfterTargets="DownloadContentFiles">
+    <Message Text="Embedding $(POLICYFILE) as policy, $(EVALFILE) as value" Importance="high" />
     <ItemGroup>
-      <EmbeddedResource Include="$(EVALFILE)$(EFileExt)" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <AssemblyAttribute Include="AwesomeOpossum.Logic.Util.ValueFileAttribute">
-        <_Parameter1>$(EVALFILE)$(EFileExt)</_Parameter1>
-      </AssemblyAttribute>
-    </ItemGroup>
-  </Target>
-
-
-
-  <!-- Same process for the policy network
-  -->
-  <Target Name="SetPolicyFile" BeforeTargets="PreBuildEvent" Condition="'$(POLICYFILE)' == ''">
-    <PropertyGroup>
-      <POLICYFILE>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)policy.txt))</POLICYFILE>
-    </PropertyGroup>
-
-    <CreateProperty Value=".bin">
-      <Output TaskParameter="Value" PropertyName="EFileExt" />
-    </CreateProperty>
-
-    <Message Text="POLICYFILE (PolicyNetwork) set to $(POLICYFILE)" Importance="high" />
-  </Target>
-
-  
-  <Target Name="DownloadPolicyFiles" AfterTargets="SetPolicyFile" Condition="!Exists('$(POLICYFILE)$(EFileExt)')">
-    <PropertyGroup>
-      <NetworkFileURL>https://github.com/liamt19/opossum-nets/releases/download/$(POLICYFILE)/$(POLICYFILE)$(EFileExt)</NetworkFileURL>
-    </PropertyGroup>
-
-    <Message Text="Downloading $(NetworkFileURL) into $(MSBuildThisFileDirectory)" Importance="high" />
-
-    <DownloadFile SourceUrl="$(NetworkFileURL)" DestinationFolder="$(MSBuildThisFileDirectory)">
-      <Output TaskParameter="DownloadedFile" ItemName="Content" />
-    </DownloadFile>
-  </Target>
-
-  
-  <Target Name="EmbedPolicyFile" AfterTargets="DownloadPolicyFiles;SetPolicyFile">
-    <Message Text="Embedding $(POLICYFILE)$(EFileExt) as a resource" Importance="high" />
-
-    <ItemGroup>
-      <EmbeddedResource Include="$(POLICYFILE)$(EFileExt)" />
-    </ItemGroup>
-
-    <ItemGroup>
+      <EmbeddedResource Include="$(POLICYFILE)" />
       <AssemblyAttribute Include="AwesomeOpossum.Logic.Util.PolicyFileAttribute">
-        <_Parameter1>$(POLICYFILE)$(EFileExt)</_Parameter1>
+        <_Parameter1>$(POLICYFILE)</_Parameter1>
+      </AssemblyAttribute>
+
+      <EmbeddedResource Include="$(EVALFILE)" />
+      <AssemblyAttribute Include="AwesomeOpossum.Logic.Util.ValueFileAttribute">
+        <_Parameter1>$(EVALFILE)</_Parameter1>
       </AssemblyAttribute>
     </ItemGroup>
   </Target>
 
 
-  <PropertyGroup>
+  <!-- Handle SIMD Bindings -->
+  <PropertyGroup Condition="'$(BINDINGS)' == ''">
     <BINDINGS>SIMDBindings.dll</BINDINGS>
   </PropertyGroup>
-  <!-- Handle SIMD Bindings -->
+  
   <ItemGroup>
     <EmbeddedResource Condition="'$(BINDINGS)' != '' AND Exists('$(BINDINGS)')" Include="$(BINDINGS)" />
   </ItemGroup>
@@ -208,18 +149,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Remove="Logic\Core\PositionRESIZE.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="obj\" />
     <Folder Include="Resources\" />
   </ItemGroup>
 
-  <!-- This is for using Bitmaps -->
-  <ItemGroup Condition="'$(Configuration)'=='Debug'">
-    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ZstdSharp.Port" Version="0.8.1" />
   </ItemGroup>

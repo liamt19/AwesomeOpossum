@@ -56,13 +56,12 @@ endif
 
 
 #  self-contained              .NET Core won't need to be installed to run the binary
-#  -v quiet                    Silences CS#### warnings during building (e.g. "CS0162: Unreachable code detected")
 #  -p:WarningLevel=0           Silences CS#### warnings during building
 #  $(OUT_DIR)                  Should be "-o ./", which outputs the binary in the current directory
 #  -c Release                  Builds using the Release configuration in AwesomeOpossum.csproj
 #  -p:AssemblyName=$(EXE)      Renames the binary to whatever $(EXE) is.
 #  -p:EVALFILE=$(EVALFILE)     Path to a network to be bundled.
-BUILD_OPTS := --self-contained -v quiet -p:WarningLevel=0 $(OUT_DIR) -c Release -p:AssemblyName=$(EXE) $(EVALFILE_STR) -p:BINDINGS=$(BINDINGS_FILE)
+BUILD_OPTS := --self-contained -v detailed -p:WarningLevel=0 $(OUT_DIR) -c Release -p:AssemblyName=$(EXE) $(EVALFILE_STR) -p:BINDINGS=$(BINDINGS_FILE)
 
 
 #  -p:PublishAOT=true                 Actually enables AOT

@@ -18,15 +18,15 @@
         //public static int SEEValueRook = 535;
         //public static int SEEValueQueen = 970;
 
-        public static float ExplTau = 0.5f;
-        public static float CPuctVisitScale = 4000.0f;
-        public static float CPuctBaseRoot = 0.5f;
-        public static float CPuctBase = 0.25f;
-        public static float PSTQInc = 0.75f;
-        public static float PSTQScale = 0.25f;
-        public static float PSTNumer = 2.15f;
-        public static float PSTPow = 1.60f;
-        public static float PSTOffset = 0.15f;
-        public static float PSTSinDiv = 25.0f;
+        public static float ExplTau = 0.6442f;
+        public static float CPuctVisitScale = 4011.9372f;
+        public static float CPuctBaseRoot = 0.5173f;
+        public static float CPuctBase = 0.2805f;
+        public static float PSTQInc = 0.7906f;
+        public static float PSTQScale = 0.2559f;
+        public static float PSTNumer = 2.2811f;
+        public static float PSTPow = 1.4742f;
+        public static float PSTOffset = 0.1489f;
+        public static float PSTSinDiv = 25.4630f;
     }
 }

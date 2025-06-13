@@ -167,15 +167,16 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
-        [DllImport("libc", SetLastError = true)]
-        private static extern int madvise(IntPtr addr, UIntPtr length, int advice);
-        private const int MADV_HUGEPAGE = 14;
         public static unsafe void AdviseHugePage(void* addr, nuint length)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 return;
             }
+
+            [DllImport("libc", SetLastError = true)]
+            static extern int madvise(IntPtr addr, UIntPtr length, int advice);
+            const int MADV_HUGEPAGE = 14;
 
             try
             {

@@ -20,17 +20,13 @@ namespace AwesomeOpossum
             {
                 if (args[0] == "bench")
                 {
+                    SearchBench.Warmup();
                     SearchBench.Go(openBench: true);
                     Environment.Exit(0);
                 }
                 else if (args[0] == "compiler")
                 {
                     Console.WriteLine(GetCompilerInfo());
-                    Environment.Exit(0);
-                }
-                else if (args[0] == "datagen")
-                {
-                    HandleDatagenCommand(args);
                     Environment.Exit(0);
                 }
             }
@@ -82,7 +78,7 @@ namespace AwesomeOpossum
 
             ForceGC();
 
-            ThreadSetup setup = new ThreadSetup();
+            ThreadSetup setup = new();
             while (true)
             {
                 string input = Console.ReadLine();
@@ -94,7 +90,7 @@ namespace AwesomeOpossum
 
                 if (input.EqualsIgnoreCase("uci"))
                 {
-                    new UCIClient(p).Run();
+                    UCIClient.Run(p);
                 }
                 else if (input.EqualsIgnoreCase("ucinewgame"))
                 {
@@ -465,40 +461,31 @@ namespace AwesomeOpossum
         {
             if (input.ContainsIgnoreCase("perft"))
             {
-                int depth;
-
                 try
                 {
-                    depth = int.Parse(input.Substring(input.IndexOf("perft") + 6));
+                    int depth = int.Parse(input[(input.IndexOf("perft") + 6)..]);
+                    FishBench.Go(depth);
                 }
                 catch (Exception e)
                 {
-                    Log("Couldn't parse the perft depth from the input!");
-                    Log(e.ToString());
-                    return;
+                    Log($"Couldn't parse the perft depth from the input!\n{e}");
                 }
 
-                FishBench.Go(depth);
             }
             else
             {
-                int depth = 12;
-
                 try
                 {
-                    if (input.Length > 5 && int.TryParse(input.AsSpan(input.IndexOf("bench") + 6), out int newDepth))
-                    {
-                        depth = newDepth;
-                    }
+                    if (input.Length > 5 && int.TryParse(input.AsSpan(input.IndexOf("bench") + 6), out int depth))
+                        SearchBench.Go(depth);
+                    else
+                        SearchBench.Go();
                 }
                 catch (Exception e)
                 {
-                    Log("Couldn't parse the bench depth from the input!");
-                    Log(e.ToString());
-                    return;
+                    Log($"Couldn't parse the bench depth from the input!\n{e}");
                 }
 
-                SearchBench.Go(depth);
             }
         }
     }

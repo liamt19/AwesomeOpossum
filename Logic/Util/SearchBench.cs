@@ -2,17 +2,27 @@
 {
     public static class SearchBench
     {
+        public const int DefaultDepth = 7;
 
-        public static void Go(int depth = 12, bool openBench = false)
+        public static void Warmup()
         {
-            Position pos = new Position(InitialFEN, owner: GlobalSearchPool.MainThread);
+            Go(DefaultDepth - 2, silent: true);
+            Go(DefaultDepth - 3, silent: true);
+        }
+
+        public static void Go(int depth = DefaultDepth, bool openBench = false, bool silent = false)
+        {
+            bool normal = !openBench && !silent;
+            Position pos = new(InitialFEN, owner: GlobalSearchPool.MainThread);
 
             Stopwatch sw = Stopwatch.StartNew();
 
             ulong totalNodes = 0;
-            SearchInformation info = new SearchInformation(pos, depth);
-            info.OnIterationUpdate = null;
-            info.OnSearchFinish = null;
+            SearchInformation info = new(pos, depth)
+            {
+                OnIterationUpdate = null,
+                OnSearchFinish = null
+            };
 
             TimeManager.RemoveSoftLimit();
             TimeManager.SetHardLimit(20000);
@@ -29,34 +39,28 @@
 
                 ulong thisNodeCount = GlobalSearchPool.GetNodeCount();
                 totalNodes += thisNodeCount;
-                if (!openBench)
-                {
+                
+                if (normal)
                     Log($"{fen,-76}\t{thisNodeCount}");
-                }
 
                 GlobalSearchPool.Clear();
             }
             sw.Stop();
 
+            var nps = (long)(totalNodes / sw.Elapsed.TotalSeconds);
             if (openBench)
             {
                 Console.WriteLine($"info string {sw.Elapsed.TotalSeconds} seconds");
-
-                var time = (int)(totalNodes / sw.Elapsed.TotalSeconds);
-                Console.WriteLine($"{totalNodes} nodes {string.Join("", time.ToString("N0").Where(char.IsDigit))} nps");
+                Console.WriteLine($"{totalNodes} nodes {string.Join("", nps.ToString("N0").Where(char.IsDigit))} nps");
             }
-            else if (UCIClient.Active)
+            else if (normal)
             {
-                Console.WriteLine($"info string nodes {totalNodes} time {Math.Round(sw.Elapsed.TotalSeconds)} nps {(int)(totalNodes / sw.Elapsed.TotalSeconds):N0}");
-            }
-            else
-            {
-                Log($"\r\nNodes searched: {totalNodes} in {sw.Elapsed.TotalSeconds} s ({(int)(totalNodes / sw.Elapsed.TotalSeconds):N0} nps)" + "\r\n");
+                Log($"\r\nNodes searched: {totalNodes} in {sw.Elapsed.TotalSeconds} s ({nps:N0} nps)" + "\r\n");
             }
         }
 
-        private static string[] BenchFENs = new string[]
-        {
+        private static readonly string[] BenchFENs =
+        [
             "r3k2r/2pb1ppp/2pp1q2/p7/1nP1B3/1P2P3/P2N1PPP/R2QK2R w KQkq a6 0 14",
             "4rrk1/2p1b1p1/p1p3q1/4p3/2P2n1p/1P1NR2P/PB3PP1/3R1QK1 b - - 2 24",
             "r3qbrk/6p1/2b2pPp/p3pP1Q/PpPpP2P/3P1B2/2PB3K/R5R1 w - - 16 42",
@@ -106,7 +110,11 @@
             "rnbqkb1r/pppppppp/5n2/8/2PP4/8/PP2PPPP/RNBQKBNR b KQkq c3 0 2",
             "2rr2k1/1p4bp/p1q1p1p1/4Pp1n/2PB4/1PN3P1/P3Q2P/2RR2K1 w - f6 0 20",
             "3br1k1/p1pn3p/1p3n2/5pNq/2P1p3/1PN3PP/P2Q1PB1/4R1K1 w - - 0 23",
-            "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93"
-        };
+            "2r2b2/5p2/5k2/p1r1pP2/P2pB3/1P3P2/K1P3R1/7R w - - 23 93",
+            "5k2/4q1p1/3P1pQb/1p1B4/pP5p/P1PR4/5PP1/1K6 b - - 0 38",
+            "5rk1/1rP3pp/p4n2/3Pp3/1P2Pq2/2Q4P/P5P1/R3R1K1 b - - 0 32",
+            "4r1k1/4r1p1/8/p2R1P1K/5P1P/1QP3q1/1P6/3R4 b - - 0 1",
+            "3qk1b1/1p4r1/1n4r1/2P1b2B/p3N2p/P2Q3P/8/1R3R1K w - - 2 39",
+        ];
     }
 }

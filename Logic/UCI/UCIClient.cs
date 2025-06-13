@@ -281,13 +281,13 @@ namespace AwesomeOpossum.Logic.UCI
                 UCIOption opt = Options[key];
                 object prevValue = opt.FieldHandle.GetValue(null);
 
-                if (opt.FieldHandle.FieldType == typeof(bool) && bool.TryParse(optValue, out bool newBool))
+                if (opt.IsBool && bool.TryParse(optValue, out bool newBool))
                 {
                     opt.FieldHandle.SetValue(null, newBool);
                 }
-                else if (opt.FieldHandle.FieldType == typeof(int) && int.TryParse(optValue, out int newValue))
+                else if (opt.IsInt && int.TryParse(optValue, out int newValue))
                 {
-                    if (newValue >= opt.MinValue && newValue <= opt.MaxValue)
+                    if (newValue >= (int)opt.MinValue && newValue <= (int)opt.MaxValue)
                     {
                         opt.FieldHandle.SetValue(null, newValue);
 
@@ -300,6 +300,13 @@ namespace AwesomeOpossum.Logic.UCI
                         {
                             GlobalSearchPool.ResizeHashes();
                         }
+                    }
+                }
+                else if (opt.IsFloat && float.TryParse(optValue, out float newFloat))
+                {
+                    if (newFloat >= (float)opt.MinValue && newFloat <= (float)opt.MaxValue)
+                    {
+                        opt.FieldHandle.SetValue(null, newFloat);
                     }
                 }
             }
@@ -321,12 +328,14 @@ namespace AwesomeOpossum.Logic.UCI
             {
                 string fieldName = field.Name;
 
-                //  Most options are numbers and are called "spin"
-                //  If they are true/false, they are called "check"
-                string fieldType = field.FieldType == typeof(bool)   ? "check" 
+                string fieldType = field.FieldType == typeof(bool)   ? "check"
+                                 : field.FieldType == typeof(float)  ? "string"
                                  : field.FieldType == typeof(string) ? "string"
                                  :                                     "spin";
-                string defaultValue = field.GetValue(null).ToString().ToLower();
+
+                var defaultValue = field.GetValue(null);
+                if (field.FieldType == typeof(string))
+                    defaultValue = defaultValue.ToString().ToLower();
 
                 UCIOption opt = new(fieldName, fieldType, defaultValue, field);
 
@@ -341,12 +350,7 @@ namespace AwesomeOpossum.Logic.UCI
             foreach (var optName in Options.Keys)
             {
                 var opt = Options[optName];
-                if (opt.FieldHandle.FieldType != typeof(int))
-                    continue;
-
-                //  Ensure values are within [Min, Max] and Max > Min
-                int currValue = int.Parse(opt.DefaultValue);
-                if (currValue < opt.MinValue || currValue > opt.MaxValue || opt.MaxValue < opt.MinValue)
+                if (opt.HasBadRange())
                 {
                     Log($"Option '{optName}' has an invalid range! -> [{opt.MinValue} <= {opt.DefaultValue} <= {opt.MaxValue}]!");
                 }
@@ -358,15 +362,16 @@ namespace AwesomeOpossum.Logic.UCI
         {
             List<string> whitelist =
             [
-                nameof(SearchOptions.Threads),
-                nameof(SearchOptions.MultiPV),
-                nameof(SearchOptions.Hash),
-                nameof(SearchOptions.UCI_Chess960),
-                nameof(SearchOptions.UCI_ShowWDL),
-                nameof(SearchOptions.UCI_PrettyPrint),
+                //nameof(SearchOptions.Threads),
+                //nameof(SearchOptions.MultiPV),
+                //nameof(SearchOptions.Hash),
+                //nameof(SearchOptions.MoveOverhead),
+                //nameof(SearchOptions.UCI_Chess960),
+                //nameof(SearchOptions.UCI_ShowWDL),
+                //nameof(SearchOptions.UCI_PrettyPrint),
             ];
 
-            foreach (string k in Options.Keys.Where(x => whitelist.Contains(x)))
+            foreach (string k in Options.Keys.Where(x => whitelist.Contains(x) || whitelist.Count == 0))
             {
                 Console.WriteLine(Options[k].ToString());
             }
@@ -379,6 +384,7 @@ namespace AwesomeOpossum.Logic.UCI
                 nameof(SearchOptions.Threads),
                 nameof(SearchOptions.MultiPV),
                 nameof(SearchOptions.Hash),
+                nameof(SearchOptions.MoveOverhead),
                 nameof(SearchOptions.UCI_Chess960),
                 nameof(SearchOptions.UCI_ShowWDL),
                 nameof(SearchOptions.UCI_PrettyPrint),

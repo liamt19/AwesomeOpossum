@@ -12,10 +12,9 @@ public static unsafe class SearchUtils
 {
     public static float GetCPuct(in Node node, bool isRootNode)
     {
-        var cpu = isRootNode ? 0.5f : 0.25f;
+        var cpu = isRootNode ? CPuctBaseRoot : CPuctBase;
         
-        var scale = 4000.0f;
-        cpu *= 1 + float.Log10((node.Visits + scale) / scale);
+        cpu *= 1 + float.Log10((node.Visits + CPuctVisitScale) / CPuctVisitScale);
 
         return cpu;
     }
@@ -27,17 +26,17 @@ public static unsafe class SearchUtils
 
     public static float GetExplorationScale(in Node node)
     {
-        return float.Exp(0.5f * float.Log(Math.Max(node.Visits, 1)));
+        return float.Exp(ExplTau * float.Log(Math.Max(node.Visits, 1)));
     }
 
     public static float GetTemperatureAdjustment(int depth, float q)
     {
-        var winningAdj = TemperatureScale * ((q - Math.Min(q, TemperatureQInc)) / (1.0f - TemperatureQInc));
+        var winningAdj = PSTQScale * ((q - Math.Min(q, PSTQInc)) / (1.0f - PSTQInc));
 
-        var depthAdj = (2.15f / MathF.Pow(depth, 1.60f)) - 0.15f;
+        var depthAdj = (PSTNumer / MathF.Pow(depth, PSTPow)) - PSTOffset;
 
-        //  sin(x * pi / 2) / 8
-        var sinAdj = ((2 - (depth % 4)) * (depth % 2)) / 25.0f;
+        //  sin(x * pi / 2) / ...
+        var sinAdj = ((2 - (depth % 4)) * (depth % 2)) / PSTSinDiv;
 
         return 1.0f + winningAdj + depthAdj + sinAdj;
     }

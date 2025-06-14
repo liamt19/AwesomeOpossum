@@ -8,34 +8,46 @@ using AwesomeOpossum.Logic.Threads;
 
 namespace AwesomeOpossum.Logic.UCI
 {
-    public unsafe class UCIClient
+    public unsafe static class UCIClient
     {
-        private Position pos;
-        private SearchInformation info;
-        private ThreadSetup setup;
+        private static Position pos;
+        private static SearchInformation info;
+        private static ThreadSetup setup;
 
         private static Dictionary<string, UCIOption> Options;
 
         public static bool Active = false;
 
-        public UCIClient(Position pos)
+        static UCIClient()
         {
             ProcessUCIOptions();
-
-            this.pos = pos;
-
-            info = new SearchInformation(pos);
-            info.OnIterationUpdate = Utilities.PrintIterationInfo;
-            info.OnSearchFinish = PrintFinalSearchInfo;
-
-            setup = new ThreadSetup();
+            setup = new();
         }
 
-        /// <summary>
-        /// Blocks until a command is sent in the standard input stream
-        /// </summary>
-        /// <param name="cmd">Set to the command, which is the first word in the input</param>
-        /// <returns>The remaining words in the input, which are parameters for the command</returns>
+        public static void Run(Position pos)
+        {
+            Active = true;
+
+            UCIClient.pos = pos;
+
+            info = new(pos)
+            {
+                OnIterationUpdate = PrintIterationInfo,
+                OnSearchFinish = PrintFinalSearchInfo
+            };
+
+            Console.WriteLine($"id name AwesomeOpossum {EngineBuildVersion}");
+            Console.WriteLine("id author Liam McGuire");
+
+            PrintUCIOptions();
+            Console.WriteLine("uciok");
+
+            //  In case a "ucinewgame" isn't sent for the first game
+            HandleNewGame(pos.Owner.AssocPool);
+            InputLoop();
+        }
+
+
         private static string[] ReceiveString(out string cmd)
         {
             string input = Console.ReadLine();
@@ -52,33 +64,7 @@ namespace AwesomeOpossum.Logic.UCI
             return param;
         }
 
-        /// <summary>
-        /// Sends the UCI options, and begins waiting for input.
-        /// </summary>
-        public void Run()
-        {
-            Active = true;
-
-#if DEV
-            Console.WriteLine($"id name AwesomeOpossum {EngineBuildVersion} DEV");
-#else
-            Console.WriteLine($"id name AwesomeOpossum {EngineBuildVersion}");
-#endif
-            Console.WriteLine("id author Liam McGuire");
-            Console.WriteLine("info string Using Bucketed768 evaluation.");
-
-            PrintUCIOptions();
-            Console.WriteLine("uciok");
-
-            //  In case a "ucinewgame" isn't sent for the first game
-            HandleNewGame(pos.Owner.AssocPool);
-            InputLoop();
-        }
-
-        /// <summary>
-        /// Handles commands sent by UCI's.
-        /// </summary>
-        private void InputLoop()
+        private static void InputLoop()
         {
             while (true)
             {
@@ -100,9 +86,11 @@ namespace AwesomeOpossum.Logic.UCI
                 {
                     pos.IsChess960 = UCI_Chess960;
 
-                    info = new SearchInformation(pos);
-                    info.OnIterationUpdate = PrintIterationInfo;
-                    info.OnSearchFinish = PrintFinalSearchInfo;
+                    info = new(pos)
+                    {
+                        OnIterationUpdate = PrintIterationInfo,
+                        OnSearchFinish = PrintFinalSearchInfo
+                    };
 
                     ParsePositionCommand(param, pos, setup);
                     ValueNetwork.RefreshAccumulator(info.Position);
@@ -166,27 +154,7 @@ namespace AwesomeOpossum.Logic.UCI
         }
 
 
-
-
-        //  https://gist.github.com/DOBRO/2592c6dad754ba67e6dcaec8c90165bf
-
-        /// <summary>
-        /// Process "go" command parameters and begin a search.
-        /// 
-        /// <para> Currently handled: </para>
-        /// <br> movetime -> search for milliseconds </br>
-        /// <br> depth -> search until a specific depth (in plies) </br>
-        /// <br> nodes -> only look at a maximum number of nodes </br>
-        /// <br> infinite -> keep looking until we get a "stop" command </br>
-        /// <br> (w/b)time -> the specified player has x amount of milliseconds left</br>
-        /// <br> (w/b)inc -> the specified player gains x milliseconds after they move</br>
-        /// 
-        /// <para> Currently ignored: </para>
-        /// <br> ponder, movestogo, mate </br>
-        /// 
-        /// </summary>
-        /// <param name="param">List of parameters sent with the "go" command.</param>
-        private void HandleGo(string[] param)
+        private static void HandleGo(string[] param)
         {
             if (info.SearchActive)
                 return;
@@ -202,7 +170,7 @@ namespace AwesomeOpossum.Logic.UCI
 
             TimeManager.Reset();
 
-            setup.UCISearchMoves = new List<Move>();
+            setup.UCISearchMoves = [];
 
 
             //  Assume that we can search infinitely, and let the parameters constrain us accordingly.
@@ -271,7 +239,8 @@ namespace AwesomeOpossum.Logic.UCI
             pool.Clear();
         }
 
-        private void HandleSetOption(string optName, string optValue)
+
+        private static void HandleSetOption(string optName, string optValue)
         {
             optName = optName.Replace(" ", string.Empty);
 
@@ -281,13 +250,13 @@ namespace AwesomeOpossum.Logic.UCI
                 UCIOption opt = Options[key];
                 object prevValue = opt.FieldHandle.GetValue(null);
 
-                if (opt.FieldHandle.FieldType == typeof(bool) && bool.TryParse(optValue, out bool newBool))
+                if (opt.IsBool && bool.TryParse(optValue, out bool newBool))
                 {
                     opt.FieldHandle.SetValue(null, newBool);
                 }
-                else if (opt.FieldHandle.FieldType == typeof(int) && int.TryParse(optValue, out int newValue))
+                else if (opt.IsInt && int.TryParse(optValue, out int newValue))
                 {
-                    if (newValue >= opt.MinValue && newValue <= opt.MaxValue)
+                    if (newValue >= (int)opt.MinValue && newValue <= (int)opt.MaxValue)
                     {
                         opt.FieldHandle.SetValue(null, newValue);
 
@@ -302,6 +271,13 @@ namespace AwesomeOpossum.Logic.UCI
                         }
                     }
                 }
+                else if (opt.IsFloat && float.TryParse(optValue, out float newFloat))
+                {
+                    if (newFloat >= (float)opt.MinValue && newFloat <= (float)opt.MaxValue)
+                    {
+                        opt.FieldHandle.SetValue(null, newFloat);
+                    }
+                }
             }
             catch (Exception e)
             {
@@ -309,6 +285,7 @@ namespace AwesomeOpossum.Logic.UCI
             }
 
         }
+
 
         private static void ProcessUCIOptions()
         {
@@ -321,12 +298,14 @@ namespace AwesomeOpossum.Logic.UCI
             {
                 string fieldName = field.Name;
 
-                //  Most options are numbers and are called "spin"
-                //  If they are true/false, they are called "check"
-                string fieldType = field.FieldType == typeof(bool)   ? "check" 
+                string fieldType = field.FieldType == typeof(bool)   ? "check"
+                                 : field.FieldType == typeof(float)  ? "string"
                                  : field.FieldType == typeof(string) ? "string"
                                  :                                     "spin";
-                string defaultValue = field.GetValue(null).ToString().ToLower();
+
+                var defaultValue = field.GetValue(null);
+                if (field.FieldType == typeof(string))
+                    defaultValue = defaultValue.ToString().ToLower();
 
                 UCIOption opt = new(fieldName, fieldType, defaultValue, field);
 
@@ -341,12 +320,7 @@ namespace AwesomeOpossum.Logic.UCI
             foreach (var optName in Options.Keys)
             {
                 var opt = Options[optName];
-                if (opt.FieldHandle.FieldType != typeof(int))
-                    continue;
-
-                //  Ensure values are within [Min, Max] and Max > Min
-                int currValue = int.Parse(opt.DefaultValue);
-                if (currValue < opt.MinValue || currValue > opt.MaxValue || opt.MaxValue < opt.MinValue)
+                if (opt.HasBadRange())
                 {
                     Log($"Option '{optName}' has an invalid range! -> [{opt.MinValue} <= {opt.DefaultValue} <= {opt.MaxValue}]!");
                 }
@@ -358,15 +332,16 @@ namespace AwesomeOpossum.Logic.UCI
         {
             List<string> whitelist =
             [
-                nameof(SearchOptions.Threads),
-                nameof(SearchOptions.MultiPV),
-                nameof(SearchOptions.Hash),
-                nameof(SearchOptions.UCI_Chess960),
-                nameof(SearchOptions.UCI_ShowWDL),
-                nameof(SearchOptions.UCI_PrettyPrint),
+                //nameof(SearchOptions.Threads),
+                //nameof(SearchOptions.MultiPV),
+                //nameof(SearchOptions.Hash),
+                //nameof(SearchOptions.MoveOverhead),
+                //nameof(SearchOptions.UCI_Chess960),
+                //nameof(SearchOptions.UCI_ShowWDL),
+                //nameof(SearchOptions.UCI_PrettyPrint),
             ];
 
-            foreach (string k in Options.Keys.Where(x => whitelist.Contains(x)))
+            foreach (string k in Options.Keys.Where(x => whitelist.Contains(x) || whitelist.Count == 0))
             {
                 Console.WriteLine(Options[k].ToString());
             }
@@ -379,6 +354,7 @@ namespace AwesomeOpossum.Logic.UCI
                 nameof(SearchOptions.Threads),
                 nameof(SearchOptions.MultiPV),
                 nameof(SearchOptions.Hash),
+                nameof(SearchOptions.MoveOverhead),
                 nameof(SearchOptions.UCI_Chess960),
                 nameof(SearchOptions.UCI_ShowWDL),
                 nameof(SearchOptions.UCI_PrettyPrint),

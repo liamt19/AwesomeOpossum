@@ -27,7 +27,9 @@ namespace AwesomeOpossum.Logic.Evaluation
         public const int INPUT_SIZE = 768;
         public const int L1_SIZE = 512;
         public const int OUTPUT_SIZE = 1880;
-        public const int OUTPUT_BUCKETS = 1;
+        public const int OUTPUT_BUCKETS = 2;
+
+        public const int SEE_THRESHOLD = -105;
 
         public const int QA = 255;
         public const int QB = 64;
@@ -152,12 +154,20 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
         [MethodImpl(Inline)]
-        public static int MoveIndex(Move m, int stm, int kingSq)
+        public static int MoveIndex(Position pos, Move m)
         {
+            const int MaxPromos = 22 * 4;
+
+            int stm = pos.ToMove;
+            int kingSq = pos.KingSquare(stm);
+
             int hm = (kingSq % 8 > 3) ? 7 : 0;
             var src = Orient(m.From ^ hm, stm);
             var dst = Orient(m.To ^ hm, stm);
 
+            int seeBucket = pos.SEE(m, SEE_THRESHOLD) ? (OFFSETS[64] + MaxPromos) : 0;
+
+            int idx;
             if (m.IsPromotion)
             {
                 int ffile = src % 8;
@@ -165,20 +175,21 @@ namespace AwesomeOpossum.Logic.Evaluation
                 int promoId = 2 * ffile + tfile;
 
                 int thing = 22 * (m.PromotionTo - 1);
-                return OFFSETS[64] + thing + promoId;
+                idx = OFFSETS[64] + thing + promoId;
             }
             else
             {
                 ulong below = ALL_DESTINATIONS[src] & ((1UL << dst) - 1);
-                return OFFSETS[src] + (int)popcount(below);
+                idx = OFFSETS[src] + (int)popcount(below);
             }
+
+            return idx + seeBucket;
         }
 
 
         public static float Evaluate(Position pos, Move m)
         {
-            int ksq = pos.State->KingSquares[pos.ToMove];
-            int moveIndex = MoveIndex(m, pos.ToMove, ksq);
+            int moveIndex = MoveIndex(pos, m);
 
             int output;
 

@@ -945,6 +945,100 @@ namespace AwesomeOpossum.Logic.Core
         }
 
 
+        private static ReadOnlySpan<int> SEEValues => [100, 450, 450, 650, 1250, 0, 0];
+        public bool SEE(Move m, int threshold)
+        {
+            var (from, to) = m.Unpack();
+
+            int dstPiece = bb.GetPieceAtIndex(to);
+            int next = m.IsPromotion ? m.PromotionTo : bb.GetPieceAtIndex(from);
+            int gain = m.IsEnPassant ? SEEValues[Pawn] : SEEValues[dstPiece];
+            gain += m.IsPromotion ? (SEEValues[m.PromotionTo] - SEEValues[Pawn]) : 0;
+
+            int score = gain - threshold - SEEValues[next];
+
+            if (score >= 0)
+                return true;
+
+            ulong occ = (bb.Occupancy) ^ (SquareBB[from] ^ SquareBB[to]);
+            if (m.IsEnPassant)
+                occ ^= SquareBB[to ^ 8];
+
+            int us = Not(ToMove);
+
+            ulong bishops = bb.Pieces[Bishop] | bb.Pieces[Queen];
+            ulong rooks = bb.Pieces[Rook] | bb.Pieces[Queen];
+            ulong attackers = bb.AttackersTo(to, occ);
+
+
+            void LVA(ulong ourAttackers)
+            {
+                ulong temp;
+                if ((temp = ourAttackers & bb.Pieces[Pawn]) != 0)
+                {
+                    occ ^= SquareBB[lsb(temp)];
+                    next = Pawn;
+
+                    attackers |= (GetBishopMoves(occ, to) & bishops);
+                }
+                else if ((temp = ourAttackers & bb.Pieces[Knight]) != 0)
+                {
+                    occ ^= SquareBB[lsb(temp)];
+                    next = Knight;
+                }
+                else if ((temp = ourAttackers & bb.Pieces[Bishop]) != 0)
+                {
+                    occ ^= SquareBB[lsb(temp)];
+                    next = Bishop;
+
+                    attackers |= (GetBishopMoves(occ, to) & bishops);
+                }
+                else if ((temp = ourAttackers & bb.Pieces[Rook]) != 0)
+                {
+                    occ ^= SquareBB[lsb(temp)];
+                    next = Rook;
+
+                    attackers |= (GetRookMoves(occ, to) & rooks);
+                }
+                else if ((temp = ourAttackers & bb.Pieces[Queen]) != 0)
+                {
+                    occ ^= SquareBB[lsb(temp)];
+                    next = Queen;
+
+                    attackers |= ((GetBishopMoves(occ, to) & bishops) | (GetRookMoves(occ, to) & rooks));
+                }
+                else if ((temp = ourAttackers & bb.Pieces[King]) != 0)
+                {
+                    occ ^= SquareBB[lsb(temp)];
+                    next = King;
+                }
+            }
+
+
+            while (true)
+            {
+                var ourAttackers = attackers & bb.Colors[us];
+                if (ourAttackers == 0)
+                    break;
+
+                LVA(ourAttackers);
+
+                attackers &= occ;
+                score = -score - 1 - SEEValues[next];
+                us = Not(us);
+
+                if (score >= 0)
+                {
+                    if (next == King && (attackers & bb.Colors[us]) != 0)
+                        us = Not(us);
+
+                    break;
+                }
+            }
+
+            return (ToMove != us);
+        }
+
 
         private static readonly char[] FENSeparators = ['/', ' '];
 

@@ -166,6 +166,16 @@ namespace AwesomeOpossum.Logic.Util
             return (T*)block;
         }
 
+        public static unsafe T* AlignedAllocZeroedHuge<T>(nuint items, nuint alignment = (1024 * 1024))
+        {
+            nuint bytes = ((nuint)sizeof(T) * (nuint)items);
+            void* block = NativeMemory.AlignedAlloc(bytes, alignment);
+            NativeMemory.Clear(block, bytes);
+            AdviseHugePage(block, bytes);
+
+            return (T*)block;
+        }
+
 
         public static unsafe void AdviseHugePage(void* addr, nuint length)
         {

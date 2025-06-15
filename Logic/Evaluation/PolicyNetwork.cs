@@ -44,18 +44,11 @@ namespace AwesomeOpossum.Logic.Evaluation
         private static readonly PolicyNetContainer<short, short> Net;
         private static long ExpectedNetworkSize => (N_FTW + N_FTB + N_L1W + N_L1B) * sizeof(short);
 
-        private static readonly int* OFFSETS;
-        private static readonly ulong* ALL_DESTINATIONS;
-
         static PolicyNetwork()
         {
             Net = new();
 
-            OFFSETS = AlignedAllocZeroed<int>(65);
-            ALL_DESTINATIONS = AlignedAllocZeroed<ulong>(64);
-
             Initialize(NetworkName);
-            SetupOffsets();
         }
 
         public static void Initialize(string networkToLoad, bool exitIfFail = true)
@@ -165,7 +158,7 @@ namespace AwesomeOpossum.Logic.Evaluation
             var src = Orient(m.From ^ hm, stm);
             var dst = Orient(m.To ^ hm, stm);
 
-            int seeBucket = pos.SEE(m, SEE_THRESHOLD) ? (OFFSETS[64] + MaxPromos) : 0;
+            int seeBucket = pos.SEE(m, SEE_THRESHOLD) ? (MoveOffsets[64] + MaxPromos) : 0;
 
             int idx;
             if (m.IsPromotion)
@@ -175,12 +168,12 @@ namespace AwesomeOpossum.Logic.Evaluation
                 int promoId = 2 * ffile + tfile;
 
                 int thing = 22 * (m.PromotionTo - 1);
-                idx = OFFSETS[64] + thing + promoId;
+                idx = MoveOffsets[64] + thing + promoId;
             }
             else
             {
-                ulong below = ALL_DESTINATIONS[src] & ((1UL << dst) - 1);
-                idx = OFFSETS[src] + (int)popcount(below);
+                ulong below = AllDestinations[src] & ((1UL << dst) - 1);
+                idx = MoveOffsets[src] + (int)popcount(below);
             }
 
             return idx + seeBucket;
@@ -245,72 +238,38 @@ namespace AwesomeOpossum.Logic.Evaluation
 
 
 
-        private static void SetupOffsets()
-        {
-            for (int square = 0; square < SquareNB; square++)
-            {
-                int rank = GetIndexRank(square);
-                int file = GetIndexFile(square);
 
-                ulong rooks = (ulong)((0xFFUL << (rank * 8)) ^ (0x0101_0101_0101_0101UL << file));
-                ulong bishops = BinaryPrimitives.ReverseEndianness(Diagonals[file + rank]) ^ Diagonals[7 + file - rank];
-                ALL_DESTINATIONS[square] = rooks | bishops | KnightAttacks[square] | KingAttacks[square];
-            }
-
-            int curr = 0;
-            for (int square = 0; square <= SquareNB; square++)
-            {
-                OFFSETS[square] = curr;
-                curr += (int)popcount(ALL_DESTINATIONS[square]);
-            }
-        }
-
-        private static ReadOnlySpan<ulong> Diagonals =>
+        private static ReadOnlySpan<int> MoveOffsets =>
         [
-            0x0100000000000000, 0x0201000000000000, 0x0402010000000000, 0x0804020100000000,
-            0x1008040201000000, 0x2010080402010000, 0x4020100804020100, 0x8040201008040201,
-            0x0080402010080402, 0x0000804020100804, 0x0000008040201008, 0x0000000080402010,
-            0x0000000000804020, 0x0000000000008040, 0x0000000000000080,
+            0x000, 0x017, 0x02F, 0x048, 0x061, 0x07A, 0x093, 0x0AB,
+            0x0C2, 0x0DA, 0x0F5, 0x112, 0x12F, 0x14C, 0x169, 0x184,
+            0x19C, 0x1B5, 0x1D2, 0x1F3, 0x214, 0x235, 0x256, 0x273,
+            0x28C, 0x2A5, 0x2C2, 0x2E3, 0x306, 0x329, 0x34A, 0x367,
+            0x380, 0x399, 0x3B6, 0x3D7, 0x3FA, 0x41D, 0x43E, 0x45B,
+            0x474, 0x48D, 0x4AA, 0x4CB, 0x4EC, 0x50D, 0x52E, 0x54B,
+            0x564, 0x57C, 0x597, 0x5B4, 0x5D1, 0x5EE, 0x60B, 0x626,
+            0x63E, 0x655, 0x66D, 0x686, 0x69F, 0x6B8, 0x6D1, 0x6E9,
+            0x700,
         ];
 
-        private static ReadOnlySpan<ulong> KingAttacks =>
+        private static ReadOnlySpan<ulong> AllDestinations =>
         [
-            0x0000000000000302, 0x0000000000000705, 0x0000000000000E0A, 0x0000000000001C14,
-            0x0000000000003828, 0x0000000000007050, 0x000000000000E0A0, 0x000000000000C040,
-            0x0000000000030203, 0x0000000000070507, 0x00000000000E0A0E, 0x00000000001C141C, 
-            0x0000000000382838, 0x0000000000705070, 0x0000000000E0A0E0, 0x0000000000C040C0, 
-            0x0000000003020300, 0x0000000007050700, 0x000000000E0A0E00, 0x000000001C141C00, 
-            0x0000000038283800, 0x0000000070507000, 0x00000000E0A0E000, 0x00000000C040C000, 
-            0x0000000302030000, 0x0000000705070000, 0x0000000E0A0E0000, 0x0000001C141C0000, 
-            0x0000003828380000, 0x0000007050700000, 0x000000E0A0E00000, 0x000000C040C00000, 
-            0x0000030203000000, 0x0000070507000000, 0x00000E0A0E000000, 0x00001C141C000000, 
-            0x0000382838000000, 0x0000705070000000, 0x0000E0A0E0000000, 0x0000C040C0000000, 
-            0x0003020300000000, 0x0007050700000000, 0x000E0A0E00000000, 0x001C141C00000000, 
-            0x0038283800000000, 0x0070507000000000, 0x00E0A0E000000000, 0x00C040C000000000, 
-            0x0302030000000000, 0x0705070000000000, 0x0E0A0E0000000000, 0x1C141C0000000000, 
-            0x3828380000000000, 0x7050700000000000, 0xE0A0E00000000000, 0xC040C00000000000, 
-            0x0203000000000000, 0x0507000000000000, 0x0A0E000000000000, 0x141C000000000000, 
-            0x2838000000000000, 0x5070000000000000, 0xA0E0000000000000, 0x40C0000000000000, 
-        ];
-
-        private static ReadOnlySpan<ulong> KnightAttacks =>
-        [
-            0x0000000000020400, 0x0000000000050800, 0x00000000000A1100, 0x0000000000142200,
-            0x0000000000284400, 0x0000000000508800, 0x0000000000A01000, 0x0000000000402000,
-            0x0000000002040004, 0x0000000005080008, 0x000000000A110011, 0x0000000014220022,
-            0x0000000028440044, 0x0000000050880088, 0x00000000A0100010, 0x0000000040200020,
-            0x0000000204000402, 0x0000000508000805, 0x0000000A1100110A, 0x0000001422002214,
-            0x0000002844004428, 0x0000005088008850, 0x000000A0100010A0, 0x0000004020002040,
-            0x0000020400040200, 0x0000050800080500, 0x00000A1100110A00, 0x0000142200221400,
-            0x0000284400442800, 0x0000508800885000, 0x0000A0100010A000, 0x0000402000204000,
-            0x0002040004020000, 0x0005080008050000, 0x000A1100110A0000, 0x0014220022140000,
-            0x0028440044280000, 0x0050880088500000, 0x00A0100010A00000, 0x0040200020400000,
-            0x0204000402000000, 0x0508000805000000, 0x0A1100110A000000, 0x1422002214000000,
-            0x2844004428000000, 0x5088008850000000, 0xA0100010A0000000, 0x4020002040000000,
-            0x0400040200000000, 0x0800080500000000, 0x1100110A00000000, 0x2200221400000000,
-            0x4400442800000000, 0x8800885000000000, 0x100010A000000000, 0x2000204000000000,
-            0x0004020000000000, 0x0008050000000000, 0x00110A0000000000, 0x0022140000000000,
-            0x0044280000000000, 0x0088500000000000, 0x0010A00000000000, 0x0020400000000000,
+            0x81412111090707FE, 0x02824222120F0FFD, 0x04048444241F1FFB, 0x08080888493E3EF7,
+            0x10101011927C7CEF, 0x2020212224F8F8DF, 0x4041424448F0F0BF, 0x8182848890E0E07F,
+            0x412111090707FE07, 0x824222120F0FFD0F, 0x048444241F1FFB1F, 0x080888493E3EF73E,
+            0x101011927C7CEF7C, 0x20212224F8F8DFF8, 0x41424448F0F0BFF0, 0x82848890E0E07FE0,
+            0x2111090707FE0707, 0x4222120F0FFD0F0F, 0x8444241F1FFB1F1F, 0x0888493E3EF73E3E,
+            0x1011927C7CEF7C7C, 0x212224F8F8DFF8F8, 0x424448F0F0BFF0F0, 0x848890E0E07FE0E0,
+            0x11090707FE070709, 0x22120F0FFD0F0F12, 0x44241F1FFB1F1F24, 0x88493E3EF73E3E49,
+            0x11927C7CEF7C7C92, 0x2224F8F8DFF8F824, 0x4448F0F0BFF0F048, 0x8890E0E07FE0E090,
+            0x090707FE07070911, 0x120F0FFD0F0F1222, 0x241F1FFB1F1F2444, 0x493E3EF73E3E4988,
+            0x927C7CEF7C7C9211, 0x24F8F8DFF8F82422, 0x48F0F0BFF0F04844, 0x90E0E07FE0E09088,
+            0x0707FE0707091121, 0x0F0FFD0F0F122242, 0x1F1FFB1F1F244484, 0x3E3EF73E3E498808,
+            0x7C7CEF7C7C921110, 0xF8F8DFF8F8242221, 0xF0F0BFF0F0484442, 0xE0E07FE0E0908884,
+            0x07FE070709112141, 0x0FFD0F0F12224282, 0x1FFB1F1F24448404, 0x3EF73E3E49880808,
+            0x7CEF7C7C92111010, 0xF8DFF8F824222120, 0xF0BFF0F048444241, 0xE07FE0E090888482,
+            0xFE07070911214181, 0xFD0F0F1222428202, 0xFB1F1F2444840404, 0xF73E3E4988080808,
+            0xEF7C7C9211101010, 0xDFF8F82422212020, 0xBFF0F04844424140, 0x7FE0E09088848281,
         ];
 
     }

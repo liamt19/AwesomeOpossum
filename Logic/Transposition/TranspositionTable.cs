@@ -8,17 +8,14 @@ public unsafe class TranspositionTable
     private TTEntry* Entries;
     public ulong EntryCount { get; private set; }
 
-    public TranspositionTable(int mb)
-    {
-        Resize(mb);
-    }
+    public TranspositionTable() { }
 
-    public unsafe void Resize(int mb)
+    public unsafe void Resize(ulong numEntries)
     {
         if (Entries != null)
             NativeMemory.AlignedFree(Entries);
 
-        EntryCount = (ulong)mb * 0x100000UL / (ulong)sizeof(TTEntry);
+        EntryCount = numEntries;
         nuint allocSize = ((nuint)sizeof(TTEntry) * (nuint)EntryCount);
 
         //  On Linux, also inform the OS that we want it to use large pages

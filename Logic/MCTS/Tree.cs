@@ -35,20 +35,26 @@ public unsafe class Tree
         NodesLength = 0;
         Filled = 0;
 
-        TT = new TranspositionTable(mb / 4);
+        TT = new();
 
         Resize(mb);
     }
 
-    public void Resize(int mb)
+    public void Resize(int numMB)
     {
         if (Nodes != default)
             NativeMemory.AlignedFree(Nodes);
 
-        NodesLength = (ulong)mb * 0x100000UL / (ulong)sizeof(Node);
-        Nodes = AlignedAllocZeroed<Node>((nuint)NodesLength);
+        ulong mb = (ulong)numMB * 1024 * 1024;
 
-        TT.Resize(mb / 4);
+        ulong div = (ulong)sizeof(TTEntry) + ((ulong)sizeof(Node) * 4);
+        ulong entriesToAlloc = mb / div;
+        ulong nodesToAlloc = entriesToAlloc * 4;
+
+        NodesLength = nodesToAlloc;
+        Nodes = AlignedAllocZeroedHuge<Node>((nuint)NodesLength);
+
+        TT.Resize(entriesToAlloc);
     }
 
     public void Clear()

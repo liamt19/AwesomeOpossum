@@ -14,7 +14,7 @@ public struct Node
     public float PolicyValue;
     public uint Visits;
 
-    public uint FirstChild;
+    public NodePointer FirstChild;
     public byte NumChildren;
 
     public NodeState State;
@@ -53,7 +53,7 @@ public struct Node
         PolicyValue = 0.0f;
         Visits = 0;
         SumQ = 0;
-        FirstChild = 0;
+        FirstChild = default;
         NumChildren = 0;
         State = NodeState.Unterminated;
         Move = Move.Null;

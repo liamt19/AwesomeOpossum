@@ -12,7 +12,7 @@ namespace AwesomeOpossum.Logic.MCTS;
 
 public static unsafe class Iteration
 {
-    public static float? PerformOne(Position pos, uint nodeIdx, ref uint depth)
+    public static float? PerformOne(Position pos, NodePointer nodeIdx, ref uint depth)
     {
         SearchThread thisThread = pos.Owner;
         var hash = pos.Hash;
@@ -50,7 +50,7 @@ public static unsafe class Iteration
             var move = tree[childIdx].Move;
 
             Debug.Assert(pos.IsLegal(move));
-            Debug.Assert(childIdx != 0);
+            Debug.Assert(childIdx != default);
 
             pos.MakeMove(move);
             u = PerformOne(pos, childIdx, ref depth);
@@ -69,7 +69,7 @@ public static unsafe class Iteration
         return u;
     }
 
-    public static float GetNodeValue(Position pos, uint nodeIdx)
+    public static float GetNodeValue(Position pos, NodePointer nodeIdx)
     {
         SearchThread thisThread = pos.Owner;
         ref var node = ref thisThread.Tree[nodeIdx];
@@ -79,22 +79,19 @@ public static unsafe class Iteration
             (NodeStateKind.Loss, _) => 0.0f,
             (NodeStateKind.Draw, _) => 0.5f,
             (NodeStateKind.Win, _) => 1.0f,
-            _ => EvaluateNode(pos, nodeIdx)
+            _ => EvaluateNode(pos)
         };
     }
 
-    public static float EvaluateNode(Position pos, uint nodeIdx)
+    public static float EvaluateNode(Position pos)
     {
-        SearchThread thisThread = pos.Owner;
-        ref var node = ref thisThread.Tree[nodeIdx];
-
         float f = ValueNetwork.Evaluate(pos);
         float wdl = 1.0f / (1.0f + float.Exp(-f / 400.0f));
 
         return wdl;
     }
 
-    public static uint PickAction(Position pos, uint nodeIdx, in Node node)
+    public static NodePointer PickAction(Position pos, NodePointer nodeIdx, in Node node)
     {
         var tree = pos.Owner.Tree;
         bool isRootNode = (node == tree.RootNode);
@@ -104,7 +101,7 @@ public static unsafe class Iteration
         var expl = SearchUtils.GetExplorationScale(node);
         expl *= cpuct;
 
-        uint bestChild = tree.GetBestChildFunc(nodeIdx, (in Node n) => {
+        NodePointer bestChild = tree.GetBestChildFunc(nodeIdx, (in Node n) => {
             var q = n.Visits == 0 ? fpu : n.QValue;
             var u = expl * n.ExplorationValue;
             return q + u;

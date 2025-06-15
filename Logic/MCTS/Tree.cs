@@ -24,10 +24,14 @@ public unsafe class Tree
     public Span<Node> NodeSpan => new(Nodes, (int)NodesLength);
     public ref Node RootNode => ref this[0];
 
-    public Move BestRootMove => GetBestAction(0).move;
-    public (Move bm, float q) BestRootAction { get { var (_, move, q) = GetBestAction(0); return (move, q); } }
+    public Move BestRootMove => BestRootAction.bestMove;
+    public (Move bestMove, float q) BestRootAction { get { var (_, move, q) = GetBestAction(new(0, 0)); return (move, q); } }
+
+    private uint RealIndex(in NodePointer ptr) => ptr.Index;
 
     public ref Node this[uint idx] => ref Nodes[idx];
+    public ref Node this[in NodePointer ptr] => ref Nodes[RealIndex(ptr)];
+
 
     public Tree(int mb)
     {
@@ -76,46 +80,38 @@ public unsafe class Tree
         TT.Clear();
     }
 
-    public bool ReserveNodes(uint additional, out uint newFilled)
+    public bool ReserveNodes(uint additional, out NodePointer newFilled)
     {
-        newFilled = (uint)Interlocked.Add(ref Filled, additional) - additional;
-        return newFilled < NodesLength;
+        uint newIdx = (uint)Interlocked.Add(ref Filled, additional) - additional;
+        newFilled = new(newIdx, 0);
+        return newIdx < NodesLength;
     }
 
+    public Span<Node> ChildrenOf(in NodePointer parent) => ChildrenOf(this[parent]);
     public Span<Node> ChildrenOf(uint parent) => ChildrenOf(this[parent]);
     public Span<Node> ChildrenOf(in Node parentNode)
     {
-        var child = parentNode.FirstChild;
         Debug.Assert(parentNode.HasChildren);
-        Debug.Assert(child != 0);
-        Debug.Assert(child < NodesLength);
 
-        return new Span<Node>(&Nodes[child], parentNode.NumChildren);
+        var child = parentNode.FirstChild;
+        fixed (Node* p = &this[child])
+            return new Span<Node>(p, parentNode.NumChildren);
     }
 
-    public IEnumerable<int> ChildrenIndicesOf(uint parent) => ChildrenIndicesOf(this[parent]);
-    public IEnumerable<int> ChildrenIndicesOf(in Node parentNode)
-    {
-        var child = parentNode.FirstChild;
-        Debug.Assert(parentNode.HasChildren);
-        Debug.Assert(child != 0);
-        Debug.Assert(child < NodesLength);
-
-        return Enumerable.Range((int)parentNode.FirstChild, parentNode.NumChildren);
-    }
 
     public void PushRoot(Position pos)
     {
         Debug.Assert(Filled == 0);
 
+        NodePointer root = new(0, 0);
         ReserveNodes(1, out _);
         this[0].Set(Move.Null, 0.0f);
-        Expand(pos, 0, 1);
-        this[0].Update(1.0f - Iteration.GetNodeValue(pos, 0));
+        Expand(pos, root, 1);
+        this[0].Update(1.0f - Iteration.GetNodeValue(pos, root));
     }
 
 
-    public bool Expand(Position pos, uint nodeIndex, uint depth)
+    public bool Expand(Position pos, NodePointer nodeIndex, uint depth)
     {
         ref Node thisNode = ref this[nodeIndex];
 
@@ -131,7 +127,7 @@ public unsafe class Tree
             maxScore = MathF.Max(maxScore, moves[i].Score);
         }
 
-        if (!ReserveNodes(count, out uint newPtr))
+        if (!ReserveNodes(count, out NodePointer newPtr))
             return false;
 
         var pst = SearchUtils.GetTemperatureAdjustment((int)depth, this[nodeIndex].QValue);
@@ -167,7 +163,7 @@ public unsafe class Tree
 
         bool isLosing = true;
         byte maxWinLen = childState.Length;
-        var firstChild = parent.FirstChild;
+        var firstChild = parent.FirstChild.Index;
         for (uint i = firstChild; i < firstChild + parent.NumChildren; i++)
         {
             var s = this[i].State;
@@ -194,7 +190,7 @@ public unsafe class Tree
     /// <summary>
     ///  Returns the index of the child within the tree
     /// </summary>
-    public uint GetBestChildFunc(uint nodeIndex, ChildSelector F)
+    public NodePointer GetBestChildFunc(NodePointer nodeIndex, ChildSelector F)
     {
         uint bestIdx = int.MaxValue;
         float bestScore = float.MinValue;
@@ -214,15 +210,15 @@ public unsafe class Tree
         return thisNode.FirstChild + bestIdx;
     }
 
-    public (uint idx, Move move, float q) GetBestAction(uint nodeIndex)
+    public (NodePointer idx, Move move, float q) GetBestAction(NodePointer nodeIndex)
     {
-        uint idx = GetBestChild(nodeIndex);
+        NodePointer idx = GetBestChild(nodeIndex);
         Move move = this[idx].Move;
         float q = this[idx].QValue;
         return (idx, move, q);
     }
 
-    public uint GetBestChild(uint nodeIndex)
+    public NodePointer GetBestChild(NodePointer nodeIndex)
     {
         return GetBestChildFunc(nodeIndex, (in Node n) => {
             if (n.Visits == 0)
@@ -243,8 +239,9 @@ public unsafe class Tree
         List<Move> list = [];
 
         bool mate = this[0].IsTerminal;
+        NodePointer root = new(0, 0);
 
-        var (idx, move, q) = GetBestAction(0);
+        var (idx, move, q) = GetBestAction(root);
         float score = q;
         if (this[idx].IsValid)
         {

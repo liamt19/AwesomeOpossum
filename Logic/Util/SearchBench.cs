@@ -2,7 +2,7 @@
 {
     public static class SearchBench
     {
-        public const int DefaultDepth = 7;
+        public const int DefaultDepth = 6;
 
         public static void Warmup()
         {
@@ -21,7 +21,8 @@
             SearchInformation info = new(pos, depth)
             {
                 OnIterationUpdate = null,
-                OnSearchFinish = null
+                OnSearchFinish = null,
+                HardNodeLimit = 4000000,
             };
 
             TimeManager.RemoveSoftLimit();

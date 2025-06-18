@@ -177,11 +177,8 @@ namespace AwesomeOpossum.Logic.Util
         /// <summary>
         /// Returns the opposite of <paramref name="color"/>.
         /// </summary>
-        public static int Not(int color)
-        {
-            return color ^ 1;
-        }
-
+        public static int Not(int color) => color ^ 1;
+        public static uint Not(uint v) => v ^ 1;
 
         /// <summary>
         /// Returns the name of the <paramref name="color"/>.
@@ -506,7 +503,8 @@ namespace AwesomeOpossum.Logic.Util
             int cursorPosition = 0;
 
             SearchThread thisThread = info.Position.Owner;
-            var rootNode = thisThread.Tree.RootNode;
+            var tree = thisThread.Tree;
+            var rootNode = tree.RootNode;
 
             int multiPV = Math.Min(MultiPV, rootNode.NumChildren);
 
@@ -517,9 +515,9 @@ namespace AwesomeOpossum.Logic.Util
             {
                 var depth = thisThread.AverageDepth;
                 var selD = thisThread.SelDepth;
-                var (pv, scoreSig) = thisThread.Tree.GetPV(selD);
+                var (pv, scoreSig) = tree.GetPV(selD);
                 var nps = (ulong)((double)nodes / (time / 1000));
-                var hashfull = thisThread.Tree.FillLevel;
+                var hashfull = tree.FillLevel;
 
                 bool isMate = scoreSig > 1.0f || scoreSig < 0.0f;
                 var moveScore = (int)InvSigmoid(scoreSig);
@@ -538,6 +536,7 @@ namespace AwesomeOpossum.Logic.Util
                     string pDepths = $"{depth,3}/{selD,-3}";
                     var pTime = ToAnsi(FormatTime(time));
                     var pNodes = ToAnsi($"{nodes / 1000,9}kn");
+                    var pIters = ToAnsi($"{thisThread.PlayoutIteration / 1000,9}it");
                     var pScore = ToAnsi($"{FormatMoveScore(moveScore, isMate, pretty),7}", ColorForScore(moveScore, isMate));
                     var pNps = ToAnsi($"{(nodes / (time / 1000)) / 1000000,6:0.00}mn/s");
 
@@ -547,7 +546,7 @@ namespace AwesomeOpossum.Logic.Util
                     //  so instead we'll estimate where the cursor is based on how much we've printed thus far.
                     //  ToAnsi adds 12/13 characters to the length, so subtract those invisible characters from the total.
 
-                    string s = $"{pDepths} {pTime} {pNodes} {pScore} {pNps}";
+                    string s = $"{pDepths} {pTime} {pNodes} {pIters} {pScore}  ";
                     cursorPosition = s.Length - (12 * (4 + UCI_ShowWDL.AsInt()));
 
                     if (fill)
@@ -555,9 +554,10 @@ namespace AwesomeOpossum.Logic.Util
                         pDepths = $"    {selD,-3}";
                         pTime   = " ".PadRight(9);
                         pNodes  = " ".PadRight(11);
+                        pIters = " ".PadRight(11);
                         pNps    = " ".PadRight(10);
 
-                        s = $"{pDepths} {pTime} {pNodes} {pScore} {pNps}";
+                        s = $"{pDepths} {pTime} {pNodes} {pIters} {pScore}  ";
                         cursorPosition = s.Length + 4 - (12 * (1 + UCI_ShowWDL.AsInt()));
                     }
 
@@ -586,6 +586,8 @@ namespace AwesomeOpossum.Logic.Util
 
                 Console.WriteLine();
             }
+
+            //Console.WriteLine($"{thisThread.IterationsSinceSwitch} since switch,  fetched {tree.FetchedNodes} expanded {tree.ExpandedNodes}");
         }
 
 
@@ -632,13 +634,13 @@ namespace AwesomeOpossum.Logic.Util
             var ts = TimeSpan.FromMilliseconds(time);
 
             if (time < OneSecond)
-                return $"{time,7}ms";
+                return $"{time,6}ms";
             if (time < OneMinute)
-                return $"{ts,9:s\\.ff\\s}";
+                return $"{ts,8:s\\.ff\\s}";
             if (time < OneHour)
-                return $"{ts,9:mm\\mss\\s}";
+                return $"{ts,8:mm\\mss\\s}";
 
-            return $"{ts,9:h\\hmm\\mss\\s}";
+            return $"{ts,8:h\\hmm\\mss\\s}";
         }
 
         public static int DivCeil(int a, int b)

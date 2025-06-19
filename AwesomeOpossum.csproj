@@ -107,7 +107,7 @@
 
   <!-- Handle SIMD Bindings -->
   <PropertyGroup Condition="'$(BINDINGS)' == ''">
-    <BINDINGS>SIMDBindings.dll</BINDINGS>
+    <BINDINGS>1SIMDBindings.dll</BINDINGS>
   </PropertyGroup>
   
   <ItemGroup>

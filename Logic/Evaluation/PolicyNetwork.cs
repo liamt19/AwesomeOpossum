@@ -180,25 +180,40 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
+        //public static float Evaluate(Position pos, Move m)
+        //{
+        //    int moveIndex = MoveIndex(pos, m);
+
+        //    int output;
+
+        //    if (SIMDBindings.HasBindings)
+        //    {
+        //        var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
+        //        var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
+        //        var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
+        //        var l1Biases = &Net.L1Biases[moveIndex];
+
+        //        output = SIMDBindings.EvaluatePolicy(stmData, ntmData, l1Weights);
+        //    }
+        //    else
+        //    {
+        //        output = DoEvaluate(pos, moveIndex);
+        //    }
+
+        //    var rv = (((float)output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
+        //    return rv;
+        //}
+
         public static float Evaluate(Position pos, Move m)
         {
             int moveIndex = MoveIndex(pos, m);
 
-            int output;
+            var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
+            var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
+            var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
+            var l1Biases = &Net.L1Biases[moveIndex];
 
-            if (SIMDBindings.HasBindings)
-            {
-                var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
-                var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
-                var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
-                var l1Biases = &Net.L1Biases[moveIndex];
-
-                output = SIMDBindings.EvaluatePolicy(stmData, ntmData, l1Weights);
-            }
-            else
-            {
-                output = DoEvaluate(pos, moveIndex);
-            }
+            int output = SIMDBindings.PolicyEvaluateFn(stmData, ntmData, l1Weights);
 
             var rv = (((float)output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
             return rv;

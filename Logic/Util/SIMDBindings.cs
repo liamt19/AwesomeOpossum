@@ -9,11 +9,13 @@ namespace AwesomeOpossum.Logic.Util
     {
         public static readonly bool HasBindings;
         private static readonly nint Handle;
+        private static readonly IntPtr PolicyEvaluateAddr;
+        private static readonly IntPtr ValueEvaluateAddr;
 
 #if IsWindows
-        private const string DEST_NAME = "SIMDBindings.dll";
+        private const string DEST_NAME = "1SIMDBindings.dll";
 #else
-        private const string DEST_NAME = "SIMDBindings.so";
+        private const string DEST_NAME = "1SIMDBindings.so";
 #endif
 
         static SIMDBindings()
@@ -40,6 +42,12 @@ namespace AwesomeOpossum.Logic.Util
                 Log(e.Message);
                 return;
             }
+
+            PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
+            PolicyEvaluateFn = (delegate* unmanaged[Cdecl]<short*, short*, short*, int>)PolicyEvaluateAddr;
+
+            ValueEvaluateAddr = NativeLibrary.GetExport(Handle, "ValueEvaluate");
+            ValueEvaluateFn = (delegate* unmanaged[Cdecl]<short*, short*, short*, short, int>)ValueEvaluateAddr;
 
             HasBindings = true;
             Log("Loaded SIMD Bindings!");
@@ -69,6 +77,8 @@ namespace AwesomeOpossum.Logic.Util
             return true;
         }
 
+        public static unsafe delegate* unmanaged[Cdecl]<short*, short*, short*, int> PolicyEvaluateFn;
+        public static unsafe delegate* unmanaged[Cdecl]<short*, short*, short*, short, int> ValueEvaluateFn;
 
         [LibraryImport(DEST_NAME, EntryPoint = "PolicyEvaluate")]
         [SuppressGCTransition]

@@ -16,7 +16,6 @@ namespace AwesomeOpossum.Logic.Threads
         public ulong Nodes;
         public ulong HardNodeLimit;
         public ulong PlayoutIteration;
-        public ulong IterationsSinceSwitch;
 
         public int ThreadIdx;
 
@@ -225,7 +224,7 @@ namespace AwesomeOpossum.Logic.Threads
 
         public void Reset()
         {
-            Nodes = PlayoutIteration = IterationsSinceSwitch = 0;
+            Nodes = PlayoutIteration = 0;
             SelDepth = AverageDepth = 0;
         }
 
@@ -241,7 +240,6 @@ namespace AwesomeOpossum.Logic.Threads
             ClearTree();
 
             PlayoutIteration = 0;
-            IterationsSinceSwitch = 0;
 
             SearchInformation info = _info;
             info.Position = RootPosition;
@@ -265,23 +263,11 @@ namespace AwesomeOpossum.Logic.Threads
 
                 if (scoreMaybe is null)
                 {
-                    ////Display();
-
-                    IterationsSinceSwitch = 0;
-
-                    //Tree.PrintRootVisits(RootPosition);
-
-                    //Console.WriteLine($"0:\n{string.Join("\n", Tree.DBG_ROOT0.ToArray())}\n1:\n{string.Join("\n", Tree.DBG_ROOT1.ToArray())}");
-
                     //  Tree is full -> Switch halves + continue
                     Tree.SwitchHalves();
-
-                    //Console.WriteLine($"Fill: {Tree.Filled[0]}/{Tree.Filled[1]}\r\n");
-
                     continue;
                 }
 
-                IterationsSinceSwitch++;
                 PlayoutIteration++;
                 Nodes += usedDepth;
                 SelDepth = Math.Max(SelDepth, usedDepth - 1);

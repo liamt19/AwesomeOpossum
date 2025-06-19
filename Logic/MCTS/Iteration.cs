@@ -37,8 +37,6 @@ public static unsafe class Iteration
             if (!node.IsExpanded) {
                 if (!tree.Expand(pos, nodePtr, depth))
                     return null;
-
-                tree.ExpandedNodes += tree[nodePtr].NumChildren;
             }
 
             if (!tree.FetchChildren(nodePtr))

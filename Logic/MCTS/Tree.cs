@@ -1,5 +1,4 @@
-﻿
-using AwesomeOpossum.Logic.Evaluation;
+﻿using AwesomeOpossum.Logic.Evaluation;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -15,9 +14,6 @@ public unsafe class Tree
     public Node* Nodes;
     private ulong TotalNodes;
 
-    public ulong ExpandedNodes;
-    public ulong FetchedNodes;
-
     private ulong NodesPerHalf;
     private int CurrentHalf;
 
@@ -29,7 +25,7 @@ public unsafe class Tree
     public uint FillLevel => (uint)((1000 * CurrentFill) / NodesPerHalf);
     public Span<Node> NodeSpan => new(Nodes, (int)TotalNodes);
     public ref Node RootNode => ref this[0];
-    public NodePointer RootNodePointer => new(0, CurrentHalf);
+    public NodePointer RootNodePointer => new(CurrentHalf, 0);
 
     public Span<Node> DBG_ROOT0 => new(&Nodes[0], 21);
     public Span<Node> DBG_ROOT1 => new(&Nodes[NodesPerHalf], 21);
@@ -82,8 +78,6 @@ public unsafe class Tree
         Filled[0] = Filled[1] = 0;
         CurrentHalf = 0;
 
-        ExpandedNodes = FetchedNodes = 0;
-
         int numThreads = SearchOptions.Threads;
         ulong clustersPerThread = TotalNodes / (ulong)numThreads;
         Debug.Assert(clustersPerThread < int.MaxValue);
@@ -102,20 +96,14 @@ public unsafe class Tree
     }
 
 
-    public void ClearHalf(int half) => ClearHalf((uint)half);
-    public void ClearHalf(uint half)
-    {
-        Filled[(int)half] = 0;
-        ExpandedNodes = FetchedNodes = 0;
-    }
+    public void ClearHalf(int half) => Filled[half] = 0;
 
 
-    public bool ReserveNodes(uint toAdd, out NodePointer newFilled) => ReserveNodes(toAdd, (uint)CurrentHalf, out newFilled);
-    public bool ReserveNodes(uint toAdd, int half, out NodePointer newFilled) => ReserveNodes(toAdd, (uint)half, out newFilled);
-    public bool ReserveNodes(uint toAdd, uint half, out NodePointer newFilled)
+    public bool ReserveNodes(uint toAdd, out NodePointer newFilled) => ReserveNodes(toAdd, CurrentHalf, out newFilled);
+    public bool ReserveNodes(uint toAdd, int half, out NodePointer newFilled)
     {
         uint newIdx = (uint)Interlocked.Add(ref Filled[(int)half], toAdd) - toAdd;
-        newFilled = new(newIdx, half);
+        newFilled = new NodePointer(half, newIdx);
         return newIdx + toAdd < NodesPerHalf;
     }
 
@@ -155,15 +143,7 @@ public unsafe class Tree
     {
         for (uint i = 0; i < n; i++)
         {
-            var a = (src + i);
-            var b = (dst + i);
-            if (false && a.Index <= 21)
-                Console.Write($"copy_across src {a.Half}/{a.Index} == {this[a]}\tdst {b.Half}/{b.Index} == {this[b]}");
-
             CopyNodeAcross(src + i, dst + i);
-
-            if (false && a.Index <= 21)
-                Console.WriteLine($"\t-> dst {b.Half}/{b.Index} == {this[b]}");
         }
     }
 
@@ -177,8 +157,6 @@ public unsafe class Tree
         var numChildren = this[parent].NumChildren;
         if (!ReserveNodes(numChildren, out var newPtr))
             return false;
-
-        FetchedNodes += this[parent].NumChildren;
 
         CopyAcross(child, numChildren, newPtr);
         this[parent].FirstChild = newPtr;
@@ -388,8 +366,9 @@ public unsafe class Tree
     {
         var children = ChildrenOf(RootNode).ToArray().OrderByDescending(x => x.Visits).ToArray();
 
+        Log($"RootNode {RootNode.Visits,16:N0} visits, {children.Length} children @ {RootNode.FirstChild}:");
         foreach (var child in children)
-            Log($"{child.Move.ToString(pos),-6} -> {child.Visits,7} visits, policy = {child.PolicyValue,7:0.0000}, score = {child.QValue,7}");
+            Log($"{child.Move.ToString(pos),-7} -> {child.Visits,14:N0} visits, policy = {child.PolicyValue,7:0.0000}, score = {child.QValue,7}");
     }
 
 

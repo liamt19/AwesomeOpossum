@@ -536,7 +536,6 @@ namespace AwesomeOpossum.Logic.Util
                     string pDepths = $"{depth,3}/{selD,-3}";
                     var pTime = ToAnsi(FormatTime(time));
                     var pNodes = ToAnsi($"{nodes / 1000,9}kn");
-                    var pIters = ToAnsi($"{thisThread.PlayoutIteration / 1000,9}it");
                     var pScore = ToAnsi($"{FormatMoveScore(moveScore, isMate, pretty),7}", ColorForScore(moveScore, isMate));
                     var pNps = ToAnsi($"{(nodes / (time / 1000)) / 1000000,6:0.00}mn/s");
 
@@ -546,18 +545,17 @@ namespace AwesomeOpossum.Logic.Util
                     //  so instead we'll estimate where the cursor is based on how much we've printed thus far.
                     //  ToAnsi adds 12/13 characters to the length, so subtract those invisible characters from the total.
 
-                    string s = $"{pDepths} {pTime} {pNodes} {pIters} {pScore}  ";
+                    string s = $"{pDepths} {pTime} {pNodes} {pScore} {pNps}";
                     cursorPosition = s.Length - (12 * (4 + UCI_ShowWDL.AsInt()));
 
                     if (fill)
                     {
                         pDepths = $"    {selD,-3}";
-                        pTime   = " ".PadRight(9);
-                        pNodes  = " ".PadRight(11);
-                        pIters = " ".PadRight(11);
-                        pNps    = " ".PadRight(10);
+                        pTime = " ".PadRight(9);
+                        pNodes = " ".PadRight(11);
+                        pNps = " ".PadRight(10);
 
-                        s = $"{pDepths} {pTime} {pNodes} {pIters} {pScore}  ";
+                        s = $"{pDepths} {pTime} {pNodes} {pScore} {pNps}";
                         cursorPosition = s.Length + 4 - (12 * (1 + UCI_ShowWDL.AsInt()));
                     }
 
@@ -586,8 +584,6 @@ namespace AwesomeOpossum.Logic.Util
 
                 Console.WriteLine();
             }
-
-            //Console.WriteLine($"{thisThread.IterationsSinceSwitch} since switch,  fetched {tree.FetchedNodes} expanded {tree.ExpandedNodes}");
         }
 
 

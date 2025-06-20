@@ -3,6 +3,7 @@ using AwesomeOpossum.Logic.Data;
 using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Security.Claims;
@@ -180,30 +181,6 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
-        //public static float Evaluate(Position pos, Move m)
-        //{
-        //    int moveIndex = MoveIndex(pos, m);
-
-        //    int output;
-
-        //    if (SIMDBindings.HasBindings)
-        //    {
-        //        var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
-        //        var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
-        //        var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
-        //        var l1Biases = &Net.L1Biases[moveIndex];
-
-        //        output = SIMDBindings.EvaluatePolicy(stmData, ntmData, l1Weights);
-        //    }
-        //    else
-        //    {
-        //        output = DoEvaluate(pos, moveIndex);
-        //    }
-
-        //    var rv = (((float)output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
-        //    return rv;
-        //}
-
         public static float Evaluate(Position pos, Move m)
         {
             int moveIndex = MoveIndex(pos, m);
@@ -220,15 +197,16 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
-        public static int DoEvaluate(Position pos, int moveIndex)
+        [UnmanagedCallersOnly]
+        public static int EvaluateImpl(short* stmData, short* ntmData, short* l1Weights)
         {
             var sum = Vector256<int>.Zero;
 
             int Stride = (L1_SIZE / Vector256<short>.Count) / 2;
 
-            var data0 = pos.PolicyAccumulator[pos.ToMove];
+            var data0 = (Vector256<short>*)stmData;
             var data1 = &data0[Stride];
-            var weights = (Vector256<short>*)(&Net.L1Weights[moveIndex * L1_SIZE]);
+            var weights = (Vector256<short>*)l1Weights;
             for (int i = 0; i < Stride; i++)
             {
                 (var mLo, var mHi) = Vector256.Widen(data0[i] * weights[i]);
@@ -237,9 +215,9 @@ namespace AwesomeOpossum.Logic.Evaluation
                 sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
             }
 
-            data0 = pos.PolicyAccumulator[Not(pos.ToMove)];
+            data0 = (Vector256<short>*)ntmData;
             data1 = &data0[Stride];
-            weights = (Vector256<short>*)(&Net.L1Weights[(moveIndex * L1_SIZE) + L1_SIZE / 2]);
+            weights = (Vector256<short>*)(&l1Weights[L1_SIZE / 2]);
             for (int i = 0; i < Stride; i++)
             {
                 (var mLo, var mHi) = Vector256.Widen(data0[i] * weights[i]);
@@ -250,8 +228,6 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             return Vector256.Sum(sum);
         }
-
-
 
 
         private static ReadOnlySpan<int> MoveOffsets =>

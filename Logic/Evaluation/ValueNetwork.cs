@@ -139,29 +139,6 @@ namespace AwesomeOpossum.Logic.Evaluation
 
 
         public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
-        //public static int Evaluate(Position pos, int outputBucket)
-        //{
-        //    int output;
-        //    if (SIMDBindings.HasBindings)
-        //    {
-        //        ref Accumulator accumulator = ref *pos.State->Accumulator;
-        //        RefreshAccumulator(pos);
-
-        //        var stmData = (short*)accumulator[pos.ToMove];
-        //        var ntmData = (short*)accumulator[Not(pos.ToMove)];
-        //        var l1Weights = &Net.L1Weights[outputBucket * L1_SIZE * 2];
-        //        var l1Bias = Net.L1Biases[outputBucket];
-
-        //        output = SIMDBindings.EvaluateValue(stmData, ntmData, l1Weights, l1Bias);
-        //    }
-        //    else
-        //    {
-        //        output = DoEvaluate(pos, outputBucket);
-        //    }
-
-        //    return int.Clamp(output, ScoreTTLoss + 1, ScoreTTWin - 1);
-        //}
-
         public static int Evaluate(Position pos, int outputBucket)
         {
             ref Accumulator accumulator = ref *pos.State->Accumulator;
@@ -177,21 +154,20 @@ namespace AwesomeOpossum.Logic.Evaluation
             return int.Clamp(output, ScoreTTLoss + 1, ScoreTTWin - 1);
         }
 
-        private static int DoEvaluate(Position pos, int outputBucket)
-        {
-            ref Accumulator accumulator = ref *pos.State->Accumulator;
-            RefreshAccumulator(pos);
 
+        [UnmanagedCallersOnly]
+        public static int EvaluateImpl(short* stmData, short* ntmData, short* l1Weights, short l1Bias)
+        {
             Vector256<short> maxVec = Vector256.Create((short)QA);
             Vector256<short> zeroVec = Vector256<short>.Zero;
             Vector256<int> sum = Vector256<int>.Zero;
 
             int SimdChunks = L1_SIZE / Vector256<short>.Count;
 
-            var ourData   = accumulator[pos.ToMove];
-            var theirData = accumulator[Not(pos.ToMove)];
-            var ourWeights   = (Vector256<short>*)(&Net.L1Weights[outputBucket * (L1_SIZE * 2)]);
-            var theirWeights = (Vector256<short>*)(&Net.L1Weights[outputBucket * (L1_SIZE * 2) + L1_SIZE]);
+            var ourData = (Vector256<short>*)stmData;
+            var theirData = (Vector256<short>*)ntmData;
+            var ourWeights = (Vector256<short>*)(&l1Weights[0]);
+            var theirWeights = (Vector256<short>*)(&l1Weights[L1_SIZE]);
             for (int i = 0; i < SimdChunks; i++)
             {
                 Vector256<short> clamp = Vector256.Min(maxVec, Vector256.Max(zeroVec, ourData[i]));
@@ -214,9 +190,8 @@ namespace AwesomeOpossum.Logic.Evaluation
                 sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
             }
 
-            var bias = Net.L1Biases[outputBucket];
             int output = Vector256.Sum(sum);
-            output = (output / QA) + bias;
+            output = (output / QA) + l1Bias;
 
             return output * OUTPUT_SCALE / (QA * QB);
         }

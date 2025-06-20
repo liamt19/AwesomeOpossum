@@ -1,4 +1,5 @@
 ﻿
+using AwesomeOpossum.Logic.Evaluation;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using static System.Runtime.InteropServices.RuntimeInformation;
@@ -8,14 +9,19 @@ namespace AwesomeOpossum.Logic.Util
     public static unsafe partial class SIMDBindings
     {
         public static readonly bool HasBindings;
+
         private static readonly nint Handle;
+
         private static readonly IntPtr PolicyEvaluateAddr;
         private static readonly IntPtr ValueEvaluateAddr;
 
+        public static unsafe delegate* unmanaged<short*, short*, short*, int> PolicyEvaluateFn;
+        public static unsafe delegate* unmanaged<short*, short*, short*, short, int> ValueEvaluateFn;
+
 #if IsWindows
-        private const string DEST_NAME = "1SIMDBindings.dll";
+        private const string DEST_NAME = "SIMDBindings.dll";
 #else
-        private const string DEST_NAME = "1SIMDBindings.so";
+        private const string DEST_NAME = "SIMDBindings.so";
 #endif
 
         static SIMDBindings()
@@ -38,16 +44,26 @@ namespace AwesomeOpossum.Logic.Util
             }
             catch (Exception e)
             {
-                Log("Failed loading SIMD Bindings! :(");
-                Log(e.Message);
+                Log($"Failed loading SIMD Bindings! :( \n{e}");
                 return;
             }
 
-            PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
-            PolicyEvaluateFn = (delegate* unmanaged[Cdecl]<short*, short*, short*, int>)PolicyEvaluateAddr;
+            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
+            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)(&ValueNetwork.EvaluateImpl);
 
-            ValueEvaluateAddr = NativeLibrary.GetExport(Handle, "ValueEvaluate");
-            ValueEvaluateFn = (delegate* unmanaged[Cdecl]<short*, short*, short*, short, int>)ValueEvaluateAddr;
+            try
+            {
+                PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
+                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, "ValueEvaluate");
+            }
+            catch (Exception e)
+            {
+                Log($"Failed to find an entry point! \n{e}");
+                return;
+            }
+
+            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)PolicyEvaluateAddr;
+            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)ValueEvaluateAddr;
 
             HasBindings = true;
             Log("Loaded SIMD Bindings!");
@@ -77,15 +93,5 @@ namespace AwesomeOpossum.Logic.Util
             return true;
         }
 
-        public static unsafe delegate* unmanaged[Cdecl]<short*, short*, short*, int> PolicyEvaluateFn;
-        public static unsafe delegate* unmanaged[Cdecl]<short*, short*, short*, short, int> ValueEvaluateFn;
-
-        [LibraryImport(DEST_NAME, EntryPoint = "PolicyEvaluate")]
-        [SuppressGCTransition]
-        public static partial int EvaluatePolicy(short* us, short* them, short* L1Weights);
-
-        [LibraryImport(DEST_NAME, EntryPoint = "ValueEvaluate")]
-        [SuppressGCTransition]
-        public static partial int EvaluateValue(short* us, short* them, short* L1Weights, short L1Biases);
     }
 }

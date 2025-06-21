@@ -18,4 +18,6 @@ public record struct NodeState(NodeStateKind Kind, byte Length = 0)
 
     public static NodeState MakeLoss(byte l) => new(NodeStateKind.Loss, l);
     public static NodeState MakeWin(byte l) => new(NodeStateKind.Win, l);
+
+    public override string ToString() => $"{Kind.ToString()[0]}.{Length}";
 }

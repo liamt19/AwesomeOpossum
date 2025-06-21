@@ -146,6 +146,10 @@ namespace AwesomeOpossum
                 {
                     HandleTraceCommand(input);
                 }
+                else if (input.EqualsIgnoreCase("tree"))
+                {
+                    GlobalSearchPool.MainThread.Tree.PrintRootVisits(GlobalSearchPool.MainThread.RootPosition);
+                }
                 else if (input.EqualsIgnoreCase("pretty"))
                 {
                     UCI_PrettyPrint = !UCI_PrettyPrint;

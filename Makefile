@@ -25,8 +25,9 @@ else
 	RM_FOLDER_CMD = rm -rf
 endif
 
-FULL_EXE_PATH = $(EXE)$(BINARY_SUFFIX)
 BINDINGS_FILE = SIMDBindings.$(DLL_SUFF)
+
+FULL_EXE_PATH = $(EXE)$(BINARY_SUFFIX)
 RM_PDB = -$(RM_FILE_CMD) $(EXE).$(PDB_SUFF)
 RM_BLD_FOLDER = -cd bin && $(RM_FOLDER_CMD) Release && cd ..
 RM_OBJ_FOLDER = -$(RM_FOLDER_CMD) obj

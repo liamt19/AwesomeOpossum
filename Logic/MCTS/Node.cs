@@ -10,15 +10,19 @@ public struct Node
 {
     private const double Quantization =  16384.0 * 4;
 
+    public static readonly Node Null = new Node(NodePointer.Null);
+
     public ulong SumQ;
     public float PolicyValue;
     public uint Visits;
 
-    public uint FirstChild;
+    public NodePointer FirstChild;
     public byte NumChildren;
 
     public NodeState State;
     public Move Move;
+
+    public Node(NodePointer c) { FirstChild = c; }
 
     public bool IsTerminal => State.Kind != NodeStateKind.Unterminated;
     public bool IsOngoing => State.Kind == NodeStateKind.Unterminated;
@@ -53,10 +57,15 @@ public struct Node
         PolicyValue = 0.0f;
         Visits = 0;
         SumQ = 0;
-        FirstChild = 0;
-        NumChildren = 0;
+        ClearChildren();
         State = NodeState.Unterminated;
         Move = Move.Null;
+    }
+
+    public void ClearChildren()
+    {
+        FirstChild = NodePointer.Null;
+        NumChildren = 0;
     }
 
     public float Update(float? q)

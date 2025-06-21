@@ -259,10 +259,14 @@ namespace AwesomeOpossum.Logic.Threads
             while (!ShouldStop())
             {
                 uint usedDepth = 0;
-                float? scoreMaybe = Iteration.PerformOne(RootPosition, 0, ref usedDepth);
+                float? scoreMaybe = Iteration.PerformOne(RootPosition, Tree.RootNodePointer, ref usedDepth);
 
-                if (scoreMaybe is null) //  Tree is full
-                    SetStop(true);
+                if (scoreMaybe is null)
+                {
+                    //  Tree is full -> Switch halves + continue
+                    Tree.SwitchHalves();
+                    continue;
+                }
 
                 PlayoutIteration++;
                 Nodes += usedDepth;
@@ -270,7 +274,7 @@ namespace AwesomeOpossum.Logic.Threads
 
                 if (PlayoutIteration % 128 == 0)
                 {
-                    (_, bestMove, bestScore) = Tree.GetBestAction(0);
+                    (_, bestMove, bestScore) = Tree.GetBestAction(Tree.RootNodePointer);
                     if (bestMove != lastBestMove)
                     {
                         bmChanges++;

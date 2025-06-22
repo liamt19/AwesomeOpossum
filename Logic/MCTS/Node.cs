@@ -9,18 +9,21 @@ namespace AwesomeOpossum.Logic.MCTS;
 public struct Node
 {
     private const double Quantization =  16384.0 * 4;
+    private const double QuantSquared = Quantization * Quantization;
 
     public static readonly Node Null = new Node(NodePointer.Null);
 
     public ulong SumQ;
+    public ulong SumSquareQ;
     public float PolicyValue;
+    public float Gini;
     public uint Visits;
 
     public NodePointer FirstChild;
-    public byte NumChildren;
+    public Move Move;
 
     public NodeState State;
-    public Move Move;
+    public byte NumChildren;
 
     public Node(NodePointer c) { FirstChild = c; }
 
@@ -30,19 +33,14 @@ public struct Node
     public bool IsExpanded => (IsTerminal || HasChildren);
     public bool IsValid => (this != default);
 
-    public readonly float QValue
-    {
-        get
-        {
-            if (Visits == 0)
-                return 0.0f;
+    public readonly float QValue => (float)Q64;
+    private readonly double Q64 => Visits == 0 ? 0.0f : (SumQ / (double)Visits) / Quantization;
 
-            double q = (SumQ / (double)Visits) / Quantization;
-            return (float)q;
-        }
-    }
+    public readonly double SquareQ => (SumSquareQ / Visits) / QuantSquared;
+    public readonly double Variance => (float)Math.Max(SquareQ - Math.Pow(Q64, 2), 0.0);
 
     public readonly float ExplorationValue => PolicyValue / (1 + Visits);
+    public readonly float Impurity => float.Clamp(Gini, 0.0f, 1.0f);
 
 
     public void Set(Move m, float p)
@@ -54,9 +52,9 @@ public struct Node
 
     public void Clear()
     {
-        PolicyValue = 0.0f;
+        SumQ = SumSquareQ = 0;
+        PolicyValue = Gini = 0.0f;
         Visits = 0;
-        SumQ = 0;
         ClearChildren();
         State = NodeState.Unterminated;
         Move = Move.Null;
@@ -71,9 +69,9 @@ public struct Node
     public float Update(float? q)
     {
         var nq = (ulong)((double)q * Quantization);
-        var oldV = Interlocked.Add(ref Visits, 1) - 1;
-        var oldQ = Interlocked.Add(ref SumQ, nq) - nq;
-        //SumQSq += (q * q);
+        var oldV = FetchAdd(ref Visits, 1);
+        var oldQ = FetchAdd(ref SumQ, nq);
+        FetchAdd(ref SumSquareQ, nq * nq);
 
         return (float)(((nq + oldQ) / (1.0 + oldV)) / Quantization);
     }

@@ -14,7 +14,7 @@ public struct Node
     public static readonly Node Null = new Node(NodePointer.Null);
 
     public ulong SumQ;
-    public ulong SumSquareQ;
+    //public ulong SumSquareQ;
     public float PolicyValue;
     public float Gini;
     public uint Visits;
@@ -34,10 +34,10 @@ public struct Node
     public bool IsValid => (this != default);
 
     public readonly float QValue => (float)Q64;
-    private readonly double Q64 => Visits == 0 ? 0.0f : (SumQ / (double)Visits) / Quantization;
+    private readonly double Q64 => Visits == 0 ? 0.0f : ((SumQ / (double)Visits) / Quantization);
 
-    public readonly double SquareQ => (SumSquareQ / Visits) / QuantSquared;
-    public readonly double Variance => (float)Math.Max(SquareQ - Math.Pow(Q64, 2), 0.0);
+    //public readonly double SquareQ => (SumSquareQ / Visits) / QuantSquared;
+    //public readonly double Variance => (float)Math.Max(SquareQ - Math.Pow(Q64, 2), 0.0);
 
     public readonly float ExplorationValue => PolicyValue / (1 + Visits);
     public readonly float Impurity => float.Clamp(Gini, 0.0f, 1.0f);
@@ -52,7 +52,7 @@ public struct Node
 
     public void Clear()
     {
-        SumQ = SumSquareQ = 0;
+        SumQ = 0;// SumSquareQ = 0;
         PolicyValue = Gini = 0.0f;
         Visits = 0;
         ClearChildren();
@@ -71,7 +71,7 @@ public struct Node
         var nq = (ulong)((double)q * Quantization);
         var oldV = FetchAdd(ref Visits, 1);
         var oldQ = FetchAdd(ref SumQ, nq);
-        FetchAdd(ref SumSquareQ, nq * nq);
+        //FetchAdd(ref SumSquareQ, nq * nq);
 
         return (float)(((nq + oldQ) / (1.0 + oldV)) / Quantization);
     }

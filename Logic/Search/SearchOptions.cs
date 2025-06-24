@@ -13,6 +13,9 @@
 
 
         public static float ExplTau = 0.6493f;
+        public static float GiniBase = 0.6700f;
+        public static float GiniScale = 1.5000f;
+        public static float GiniMin = 2.1500f;
         public static float CPuctVisitScale = 3999.7565f;
         public static float CPuctBaseRoot = 0.5141f;
         public static float CPuctBase = 0.2793f;

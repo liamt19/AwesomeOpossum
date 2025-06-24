@@ -1,13 +1,16 @@
-using System;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics.Arm;
-using System.Runtime.Intrinsics.X86;
-using System.Text;
-
 using AwesomeOpossum.Logic.Magic;
 using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.Threads;
+using System;
+using System.Diagnostics;
+using System.Drawing;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.Arm;
+using System.Runtime.Intrinsics.X86;
+using System.Text;
+using System.Xml.Linq;
 
 namespace AwesomeOpossum.Logic.Util
 {
@@ -760,6 +763,29 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
+        public static unsafe void PrintMemberLayout<T>() where T : struct
+        {
+            List<(string name, int size, int offset)> mems = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Select(x => (x.Name, Marshal.SizeOf(x.FieldType), (int)Marshal.OffsetOf<T>(x.Name)))
+                .OrderBy(x => x.Item3)
+                .ToList();
+
+            var align = mems.Max(x => x.name.Length) + 2;
+
+            Console.WriteLine($"{typeof(T).Name}: {Marshal.SizeOf<T>()} bytes");
+            for (int i = 0; i < mems.Count; i++)
+            {
+                var (name, size, offset) = mems[i];
+                var next = offset + size;
+                Console.WriteLine($"{name.PadRight(align)}{size,-3} @ {offset}");
+
+                if (i != mems.Count - 1 && mems[i + 1].offset > next)
+                {
+                    int padding = (mems[i + 1].offset - next);
+                    Console.WriteLine($"{"<PAD>".PadRight(align)}\t{padding,-3} @ {next}");
+                }
+            }
+        }
 
         public static unsafe void FillWithScharnaglNumber(int n, int* types)
         {

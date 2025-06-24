@@ -6,8 +6,8 @@
 
         public static void Warmup()
         {
-            Go(DefaultDepth - 2, silent: true);
             Go(DefaultDepth - 3, silent: true);
+            Go(DefaultDepth - 2, silent: true);
         }
 
         public static void Go(int depth = DefaultDepth, bool openBench = false, bool silent = false)
@@ -22,11 +22,11 @@
             {
                 OnIterationUpdate = null,
                 OnSearchFinish = null,
-                HardNodeLimit = 4000000,
+                HardNodeLimit = 3000000,
             };
 
             TimeManager.RemoveSoftLimit();
-            TimeManager.SetHardLimit(20000);
+            TimeManager.SetHardLimit(40000);
 
             GlobalSearchPool.MainThread.WaitForThreadFinished();
             GlobalSearchPool.Clear();

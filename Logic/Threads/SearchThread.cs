@@ -302,8 +302,9 @@ namespace AwesomeOpossum.Logic.Threads
                     if (NodeLimitReached())
                         SetStop();
 
-                    if (IsDatagen)
-                        continue;
+#if DATAGEN
+                    continue;
+#endif
 
                     if (PlayoutIteration % 8192 == 0 && outputTimer.Elapsed.TotalSeconds > 3)
                         Display();

@@ -8,6 +8,7 @@ public static class ProgressBroker
     private static readonly ConcurrentDictionary<int, ulong> ThreadPositionTotals = new();
     private static readonly ConcurrentDictionary<int, ulong> ThreadNodeTotals = new();
     private static readonly ConcurrentDictionary<int, ulong> ThreadHashfullTotals = new();
+    private static readonly ConcurrentDictionary<int, ulong> ThreadIterationTotals = new();
     private static readonly CancellationTokenSource TokenSource = new();
 
     public static void StartMonitoring()
@@ -23,7 +24,7 @@ public static class ProgressBroker
     private static void MonitorProgress(CancellationToken token)
     {
         Console.WriteLine("\n");
-        Console.WriteLine("   games     positions          nodes        nps       fill");
+        Console.WriteLine("   games     positions          nodes        nps       fill        iters");
         (int _, int top) = Console.GetCursorPosition();
         Stopwatch sw = Stopwatch.StartNew();
 
@@ -39,6 +40,7 @@ public static class ProgressBroker
             ulong totalPositions = 0;
             ulong totalNodes = 0;
             ulong totalFill = 0;
+            ulong totalIterations = 0;
 
             foreach (var kvp in ThreadGameTotals)
             {
@@ -47,21 +49,24 @@ public static class ProgressBroker
                 totalPositions += ThreadPositionTotals[id];
                 totalNodes += ThreadNodeTotals[id];
                 totalFill += ThreadHashfullTotals[id];
+                totalIterations += ThreadIterationTotals[id];
             }
 
-            totalFill /= (ulong)Math.Max(ThreadGameTotals.Count, 1);
             var nps = totalNodes / sw.Elapsed.TotalSeconds;
-            Console.WriteLine($"{totalGames,8} {totalPositions,13:N0} {totalNodes,14:N0} {nps,10:N0} {totalFill,10:N0}");
+            totalFill /= (ulong)Math.Max(ThreadGameTotals.Count, 1);
+            totalIterations /= (ulong)Math.Max(ThreadGameTotals.Count, 1);
+            Console.WriteLine($"{totalGames,8} {totalPositions,13:N0} {totalNodes,14:N0} {nps,10:N0} {totalFill,10:N0} {totalIterations,12:N0}");
 
             Thread.Sleep(250);
         }
     }
 
-    public static void ReportProgress(int threadId, ulong gameNum, ulong totalPositions, ulong totalNodes, ulong totalFill)
+    public static void ReportProgress(int threadId, ulong gameNum, ulong totalPositions, ulong totalNodes, ulong totalFill, ulong totalIterations)
     {
         ThreadGameTotals[threadId] = gameNum;
         ThreadPositionTotals[threadId] = totalPositions;
         ThreadNodeTotals[threadId] = totalNodes;
         ThreadHashfullTotals[threadId] = totalFill;
+        ThreadIterationTotals[threadId] = totalIterations;
     }
 }

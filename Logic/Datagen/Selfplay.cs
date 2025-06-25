@@ -14,7 +14,7 @@ public static unsafe class Selfplay
     private static int Seed = Environment.TickCount;
     private static readonly ThreadLocal<Random> ThreadRNG = new(() => new Random(Interlocked.Increment(ref Seed)));
 
-    public static void RunGames(ulong gamesToRun, int threadID, ulong softNodeLimit = SoftNodeLimit, ulong depthLimit = DepthLimit, bool dfrc = false)
+    public static void RunValueGames(ulong gamesToRun, int threadID, ulong softNodeLimit = SoftNodeLimit, ulong depthLimit = DepthLimit, bool dfrc = false)
     {
         SearchOptions.Hash = HashSize;
         SearchOptions.UCI_Chess960 = dfrc;
@@ -26,7 +26,78 @@ public static unsafe class Selfplay
         SearchThread thread = new(0) { Tree = tree, IsDatagen = true };
         Position pos = thread.RootPosition;
 
-        string fName = $"{(dfrc ? "dfrc_" : "")}{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.bin";
+        string fName = $"{(dfrc ? "dfrc_" : "")}{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.value.bin";
+        using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+        using var outWriter = new BinaryWriter(ostr);
+
+        Span<MontyScoredMove> sd = stackalloc MontyScoredMove[MontyPack.MaxSize];
+        MontyValuePack pack = new() { moves = sd };
+
+        ulong totalPositions = 0, totalNodes = 0;
+        ulong totalSearches = 0, totalFill = 0, totalIters = 0;
+
+        var info = SearchInformation.DatagenStandard(pos, softNodeLimit, (int)depthLimit);
+
+        for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
+        {
+            pack.Clear();
+            GetStartPos(thread, dfrc);
+            pack.startpos = MontyPosition.FromPosition(pos);
+
+            NodeStateKind playoutState = NodeStateKind.Unterminated;
+
+            while (playoutState == NodeStateKind.Unterminated)
+            {
+                thread.Reset();
+                thread.SetStop(false);
+
+                thread.Playout(ref info);
+
+                var (move, scoreSig) = tree.BestRootAction;
+
+                totalSearches++;
+                totalNodes += (ulong)rootNode.NumChildren;
+                totalFill += tree.FillLevel;
+                totalIters += thread.PlayoutIteration;
+
+                var bm = ConvertToMontyMoveFormatBecauseOfCourseItIsDifferent(move, pos);
+                pack.Push(pos.ToMove, bm, scoreSig);
+                if (pack.IsAtMoveLimit)
+                    break;
+
+                pos.MakeMove(move);
+
+                playoutState = pos.PlayoutState().Kind;
+            }
+
+            GameResult result = playoutState switch
+            {
+                NodeStateKind.Loss => pos.ToMove == White ? GameResult.Loss : GameResult.Win,
+                NodeStateKind.Win  => pos.ToMove == White ? GameResult.Win  : GameResult.Loss,
+                 _                 =>                       GameResult.Draw,
+            };
+
+            totalPositions += (uint)pack.NumEntries;
+
+            ProgressBroker.ReportProgress(threadID, gameNum + 1, totalPositions, totalNodes, totalFill / totalSearches, totalIters / totalSearches);
+            pack.Write(result, outWriter);
+        }
+    }
+
+
+    public static void RunPolicyGames(ulong gamesToRun, int threadID, ulong softNodeLimit = SoftNodeLimit, ulong depthLimit = DepthLimit, bool dfrc = false)
+    {
+        SearchOptions.Hash = HashSize;
+        SearchOptions.UCI_Chess960 = dfrc;
+        TimeManager.RemoveSoftLimit();
+        TimeManager.RemoveHardLimit();
+
+        Tree tree = new(HashSize);
+        ref var rootNode = ref tree.RootNode;
+        SearchThread thread = new(0) { Tree = tree, IsDatagen = true };
+        Position pos = thread.RootPosition;
+
+        string fName = $"{(dfrc ? "dfrc_" : "")}{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.policy.bin";
         using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
         using var outWriter = new BinaryWriter(ostr);
 
@@ -36,13 +107,15 @@ public static unsafe class Selfplay
         MontyPack pack = new() { moves = sd };
 
         ulong totalPositions = 0, totalNodes = 0;
-        ulong totalFill = 0, totalSearches = 0;
+        ulong totalSearches = 0, totalFill = 0, totalIters = 0;
 
         var info = SearchInformation.DatagenStandard(pos, softNodeLimit, (int)depthLimit);
 
         for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
         {
-            GetStartPos(thread, ref pack, dfrc);
+            pack.Clear();
+            GetStartPos(thread, dfrc);
+            pack.startpos = MontyPosition.FromPosition(pos);
 
             int moveNum = 0;
             NodeStateKind playoutState = NodeStateKind.Unterminated;
@@ -61,6 +134,7 @@ public static unsafe class Selfplay
                 totalSearches++;
                 totalNodes += (ulong)nLegalMoves;
                 totalFill += tree.FillLevel;
+                totalIters += thread.PlayoutIteration;
 
                 sd[moveNum].best_move = ConvertToMontyMoveFormatBecauseOfCourseItIsDifferent(move, pos);
                 sd[moveNum].score = scoreSig;
@@ -89,20 +163,20 @@ public static unsafe class Selfplay
                     playoutState = NodeStateKind.Draw;
             }
 
-            float result = playoutState switch
+            GameResult result = playoutState switch
             {
-                NodeStateKind.Loss => pos.ToMove == White ? 0f : 1f,
-                NodeStateKind.Win => pos.ToMove == White ? 1f : 0f,
-                _ => 0.5f,
+                NodeStateKind.Loss => pos.ToMove == White ? GameResult.Loss : GameResult.Win,
+                NodeStateKind.Win => pos.ToMove == White ? GameResult.Win : GameResult.Loss,
+                _ => GameResult.Draw,
             };
-
 
             totalPositions += (uint)pack.NumEntries;
 
-            ProgressBroker.ReportProgress(threadID, gameNum + 1, totalPositions, totalNodes, totalFill / totalSearches);
+            ProgressBroker.ReportProgress(threadID, gameNum + 1, totalPositions, totalNodes, totalFill / totalSearches, totalIters / totalSearches);
             pack.AddResultsAndWrite(result, outWriter);
         }
     }
+
 
     public static void SortDistribution(Span<(Move move, uint visits)> dist) => QuickSort(dist, 0, dist.Length - 1);
     private static void QuickSort(Span<(Move move, uint visits)> dist, int low, int high)
@@ -137,7 +211,7 @@ public static unsafe class Selfplay
 
     // [35, 20, 20, 8, 12, 5]
     private static ReadOnlySpan<int> PieceProbs => [35, 55, 75, 83, 95, 100];
-    private static void GetStartPos(SearchThread thread, ref MontyPack pack, bool dfrc)
+    private static void GetStartPos(SearchThread thread, bool dfrc)
     {
         Position pos = thread.RootPosition;
         ref Bitboard bb = ref pos.bb;
@@ -159,7 +233,6 @@ public static unsafe class Selfplay
 
         thread.SetStop(false);
         thread.ClearTree();
-        pack.Clear();
 
         while (true)
         {
@@ -200,8 +273,6 @@ public static unsafe class Selfplay
 
             if (!pos.HasLegalMoves())
                 continue;
-
-            pack.startpos = MontyPosition.FromPosition(pos);
 
             return;
         }

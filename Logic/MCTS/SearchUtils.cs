@@ -28,8 +28,10 @@ public static unsafe class SearchUtils
     {
         var expl = float.Exp(ExplTau * float.Log(Math.Max(node.Visits, 1)));
 
+#if !DATAGEN
         var gini = float.Min(GiniBase - GiniScale * float.Log(node.Impurity + 0.001f), GiniMin);
         expl *= gini;
+#endif
 
         return expl;
     }

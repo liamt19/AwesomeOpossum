@@ -423,6 +423,7 @@ namespace AwesomeOpossum
             ulong numGames = 1000000;
             ulong threads = 1;
             bool dfrc = false;
+            bool policy = false;
 
             args = args.Skip(1).ToArray();
 
@@ -432,7 +433,13 @@ namespace AwesomeOpossum
             if (ulong.TryParse(args.Where(x => x.EndsWith('t')).FirstOrDefault()?[..^1], out ulong selThreads)) threads = selThreads;
 
             dfrc = args.Any(x => (x.EqualsIgnoreCase("frc") || x.EqualsIgnoreCase("dfrc")));
+            policy = args.Any(x => x.EqualsIgnoreCase("policy"));
 
+#if !DATAGEN
+            Log($"WARN: Not compiled with DATAGEN defined! Gini is being used.");
+#endif
+
+            Log($"Kind:         {(policy ? "Policy" : "Value")}");
             Log($"Threads:      {threads}");
             Log($"Games/thread: {numGames:N0}");
             Log($"Total games:  {numGames * threads:N0}");
@@ -443,18 +450,32 @@ namespace AwesomeOpossum
             _ = Console.ReadLine();
 
             ProgressBroker.StartMonitoring();
-            if (threads == 1)
+
+            if (policy)
             {
-                //  Let this run on the main thread to allow for debugging
-                Selfplay.RunGames(numGames, 0, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                if (threads == 1) //  Let this run on the main thread to allow for debugging
+                    Selfplay.RunPolicyGames(numGames, 0, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                else
+                {
+                    Parallel.For(0, (int)threads, new() { MaxDegreeOfParallelism = (int)threads }, (int i) =>
+                    {
+                        Selfplay.RunPolicyGames(numGames, i, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                    });
+                }
             }
             else
             {
-                Parallel.For(0, (int)threads, new() { MaxDegreeOfParallelism = (int)threads }, (int i) =>
+                if (threads == 1)
+                    Selfplay.RunValueGames(numGames, 0, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                else
                 {
-                    Selfplay.RunGames(numGames, i, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
-                });
+                    Parallel.For(0, (int)threads, new() { MaxDegreeOfParallelism = (int)threads }, (int i) =>
+                    {
+                        Selfplay.RunValueGames(numGames, i, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                    });
+                }
             }
+
             ProgressBroker.StopMonitoring();
 
             Environment.Exit(0);

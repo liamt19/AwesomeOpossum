@@ -683,7 +683,8 @@ namespace AwesomeOpossum.Logic.Util
 
         public static float InvSigmoid(float v)
         {
-            return 400 * float.Log10(1.0f / (1.0f - v));
+            v = float.Clamp(v, 0.0f, 1.0f);
+            return -400.0f * float.Log((1.0f / v) - 1.0f);
         }
 
 

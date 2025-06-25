@@ -8,6 +8,13 @@ using System.Threading.Tasks;
 
 namespace AwesomeOpossum.Logic.Datagen;
 
+public enum GameResult
+{
+    Loss = 0,
+    Draw = 1,
+    Win = 2,
+}
+
 public unsafe struct MontyCastling
 {
     public bool chess960;
@@ -145,7 +152,6 @@ unsafe ref struct MontyPack
 
     public MontyPosition startpos;
     public MontyCastling rights;
-    public float result;
     public Span<SearchData> moves;
 
     public int NumEntries;
@@ -159,13 +165,12 @@ unsafe ref struct MontyPack
     {
         startpos = MontyPosition.FromStartpos();
         rights = MontyCastling.FromStartpos();
-        result = 0.0f;
         NumEntries = 0;
     }
 
     public bool IsAtMoveLimit => NumEntries == MaxSize - 1;
 
-    public void AddResultsAndWrite(float result, BinaryWriter br)
+    public void AddResultsAndWrite(GameResult result, BinaryWriter br)
     {
         MontyCompressedPosition mcp = MontyCompressedPosition.FromMontyPosition(startpos);
         
@@ -181,7 +186,7 @@ unsafe ref struct MontyPack
         for (int i = 0; i < 4; i++)
             br.Write(rights.rook_files[i]);
 
-        br.Write((byte)(((int)result) * 2));
+        br.Write((byte)result);
 
         var moveSpan = moves[..NumEntries];
         foreach (var sd in moveSpan)
@@ -210,6 +215,62 @@ unsafe ref struct MontyPack
         }
 
         br.Write((ushort)0);
+        br.Flush();
+    }
+}
+
+
+public readonly record struct MontyScoredMove(Move Move, short Score);
+
+public unsafe ref struct MontyValuePack
+{
+    public const int MaxSize = 512;
+
+    public MontyPosition startpos;
+    public MontyCastling rights;
+    public Span<MontyScoredMove> moves;
+
+    public int NumEntries { get; private set; } = 0;
+    public MontyValuePack() { }
+
+    public void Clear() => NumEntries = 0;
+    public bool IsAtMoveLimit => NumEntries == MaxSize - 1;
+
+    public void Push(int stm, Move move, float score)
+    {
+        score = (stm == Black) ? (1.0f - score) : score;
+
+        short score16 = (short)InvSigmoid(score);
+
+        moves[NumEntries++] = new MontyScoredMove(move, score16);
+    }
+
+    public void Write(GameResult result, BinaryWriter br)
+    {
+        MontyCompressedPosition mcp = MontyCompressedPosition.FromMontyPosition(startpos);
+
+        for (int i = 0; i < 4; i++)
+            br.Write(mcp.bbs[i]);
+
+        br.Write(mcp.stm);
+        br.Write(mcp.enp_sq);
+        br.Write(mcp.rights);
+        br.Write(mcp.halfm);
+        br.Write(mcp.fullm);
+
+        for (int i = 0; i < 4; i++)
+            br.Write(rights.rook_files[i]);
+
+        br.Write((byte)result);
+
+        var moveSpan = moves[..NumEntries];
+        foreach (var sm in moveSpan)
+        {
+            br.Write(sm.Move.GetData());
+            br.Write(sm.Score);
+        }
+
+        br.Write((int)0);
         br.Flush();
     }
 }

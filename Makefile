@@ -56,20 +56,24 @@ ifdef EVALFILE
 endif
 
 
+
 #  self-contained              .NET Core won't need to be installed to run the binary
 #  -p:WarningLevel=0           Silences CS#### warnings during building
 #  $(OUT_DIR)                  Should be "-o ./", which outputs the binary in the current directory
-#  -c Release                  Builds using the Release configuration in AwesomeOpossum.csproj
 #  -p:AssemblyName=$(EXE)      Renames the binary to whatever $(EXE) is.
 #  -p:EVALFILE=$(EVALFILE)     Path to a network to be bundled.
-BUILD_OPTS := --self-contained -v detailed -p:WarningLevel=0 $(OUT_DIR) -c Release -p:AssemblyName=$(EXE) $(EVALFILE_STR) -p:BINDINGS=$(BINDINGS_FILE)
+COMMON_OPTS = --self-contained -v detailed -p:WarningLevel=0 $(OUT_DIR) -p:AssemblyName=$(EXE) $(EVALFILE_STR) -p:BINDINGS=$(BINDINGS_FILE)
 
+BUILD_OPTS = $(COMMON_OPTS) -c Release 
+DATAGEN_OPTS = $(COMMON_OPTS) -c Datagen 
 
 #  -p:PublishAOT=true                 Actually enables AOT
 #  -p:PublishSingleFile=false         AOT is incompatible with single file publishing
 #  -p:IS_AOT=true                     Sets a variable during runtime signalling AOT is enabled, same to how EVALFILE works.
 #  -p:IlcInstructionSet=$(INST_SET)   Instruction set to use, should be "native" if you are only running the binary on your cpu.
-AOT_OPTS = -p:PublishAOT=true -p:PublishSingleFile=false -p:IS_AOT=true -p:IlcInstructionSet=$(INST_SET)
+AOT_OPTS = $(COMMON_OPTS) -p:PublishAOT=true -p:PublishSingleFile=false -p:IS_AOT=true -p:IlcInstructionSet=$(INST_SET)
+
+
 
 
 .PHONY: release FORCE
@@ -87,16 +91,20 @@ release: $(BINDINGS_FILE)
 	dotnet publish . $(BUILD_OPTS)
 	$(FIX_OUTPUT)
 
+datagen: $(BINDINGS_FILE)
+	dotnet publish . $(DATAGEN_OPTS)
+	$(FIX_OUTPUT)
+
 #  This will/might only succeed if you have the right toolchain
 aot:
-	-dotnet publish . $(BUILD_OPTS) $(AOT_OPTS)
+	-dotnet publish . $(AOT_OPTS)
 
 512: $(BINDINGS_FILE)
 	dotnet publish . $(BUILD_OPTS) -p:DefineConstants="AVX512"
 	$(FIX_OUTPUT)
 
 aot_512:
-	-dotnet publish . $(BUILD_OPTS) $(AOT_OPTS) -p:DefineConstants="AVX512"
+	-dotnet publish . $(AOT_OPTS) -p:DefineConstants="AVX512"
 
 all:
 	$(MAKE) aot INST_SET=x86-x64

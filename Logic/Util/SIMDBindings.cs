@@ -27,6 +27,10 @@ namespace AwesomeOpossum.Logic.Util
         static SIMDBindings()
         {
             HasBindings = false;
+
+            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
+            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)(&ValueNetwork.EvaluateImpl);
+
             if (!IsOSPlatform(OSPlatform.Windows) && !IsOSPlatform(OSPlatform.Linux))
                 return;
 
@@ -47,9 +51,6 @@ namespace AwesomeOpossum.Logic.Util
                 Log($"Failed loading SIMD Bindings! :( \n{e}");
                 return;
             }
-
-            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
-            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)(&ValueNetwork.EvaluateImpl);
 
             try
             {

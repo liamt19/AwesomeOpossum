@@ -117,7 +117,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static void RefreshPerspective(Position pos, int perspective)
         {
-            ref Accumulator accumulator = ref *pos.State->Accumulator;
+            ref Accumulator accumulator = ref pos.ValueAccumulator;
             ref Bitboard bb = ref pos.bb;
 
             var ourAccumulation = (short*)accumulator[perspective];
@@ -141,7 +141,7 @@ namespace AwesomeOpossum.Logic.Evaluation
         public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
         public static int Evaluate(Position pos, int outputBucket)
         {
-            ref Accumulator accumulator = ref *pos.State->Accumulator;
+            ref Accumulator accumulator = ref pos.ValueAccumulator;
             RefreshAccumulator(pos);
 
             var stmData = (short*)accumulator[pos.ToMove];

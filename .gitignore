@@ -2,21 +2,26 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/bin
 /.vs/AwesomeOpossum
-/obj
-/TB_Files
+/.vs/ProjectEvaluation
 /AwesomeOpossum.csproj.user
 /Properties/PublishProfiles/*.user
 /Properties/launchSettings.json
-/*.exe
-/*.pdb
-/*.bin
-/*.nnue
+
+/bin
+/obj
+/TB_Files
 /data
-/.vs/ProjectEvaluation
+
+AwesomeOpossum
+
+*.exe
+*.pdb
+*.bin
+*.nnue
 *.dll
 *.so
 *.ilk
 *.lib
 *.exp
+*.epd

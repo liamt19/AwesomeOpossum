@@ -96,7 +96,6 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             Log($"\nNNUE evaluation: {baseEval}\n");
 
-            ref Accumulator Accumulator = ref *pos.State->Accumulator;
             ref Bitboard bb = ref pos.bb;
             for (int f = Files.A; f <= Files.H; f++)
             {

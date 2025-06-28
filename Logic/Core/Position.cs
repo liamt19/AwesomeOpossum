@@ -23,20 +23,13 @@ namespace AwesomeOpossum.Logic.Core
         private readonly StateInfo* StartingState;
         private readonly StateInfo* EndState;
 
-
-
-        private readonly Accumulator* _accumulatorBlock;
-
         public PolicyAccumulator PolicyAccumulator;
-
-
+        public Accumulator ValueAccumulator;
 
         private readonly bool UpdateNN;
 
         private readonly int[] CastlingRookSquares;
         private readonly ulong[] CastlingRookPaths;
-
-
 
 
         private const int StateStackSize = 2048;
@@ -112,11 +105,11 @@ namespace AwesomeOpossum.Logic.Core
             CastlingRookSquares = new int[(int)CastlingStatus.All];
             CastlingRookPaths = new ulong[(int)CastlingStatus.All];
 
-
             this.UpdateNN = createAccumulators;
             this.Owner = owner;
 
             this.bb = new();
+            this.ValueAccumulator = new();
             this.PolicyAccumulator = new();
 
             Hashes = new List<ulong>(1024);
@@ -124,20 +117,6 @@ namespace AwesomeOpossum.Logic.Core
 
             EndState = &StartingState[StateStackSize - 1];
             State = &StartingState[0];
-
-            if (UpdateNN)
-            {
-                //  Create the accumulators now if we need to.
-                //  We do this in one contiguous block rather than allocating each accumulator individually
-                //  only so that there aren't 2k small blocks that the runtime has to work around.
-                _accumulatorBlock = AlignedAllocZeroed<Accumulator>(StateStackSize);
-                for (int i = 0; i < StateStackSize; i++)
-                {
-                    (StartingState + i)->Accumulator = _accumulatorBlock + i;
-                    *(StartingState + i)->Accumulator = new Accumulator();
-                }
-            }
-
 
             if (UpdateNN && Owner == null)
             {
@@ -155,20 +134,9 @@ namespace AwesomeOpossum.Logic.Core
         /// </summary>
         ~Position()
         {
-            if (UpdateNN)
-            {
-                //  Free each accumulator, then the block
-                for (int i = 0; i < StateStackSize; i++)
-                {
-                    var acc = *(StartingState + i)->Accumulator;
-                    acc.Dispose();
-                }
-
-                NativeMemory.AlignedFree((void*)_accumulatorBlock);
-            }
-
             NativeMemory.AlignedFree((void*)StartingState);
 
+            ValueAccumulator.Dispose();
             PolicyAccumulator.Dispose();
         }
 

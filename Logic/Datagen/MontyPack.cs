@@ -37,8 +37,8 @@ public unsafe struct MontyCastling
         m.castle_mask[m.rook_files[1]] = 11;
         m.castle_mask[m.rook_files[2] + 56] = 13;
         m.castle_mask[m.rook_files[3] + 56] = 14;
-        m.castle_mask[pos.State->KingSquares[White]] = 3;
-        m.castle_mask[(pos.State->KingSquares[Black] ^ 56) + 56] = 12;
+        m.castle_mask[pos.KingSquare(White)] = 3;
+        m.castle_mask[pos.KingSquare(Black)] = 12;
 
         return m;
     }

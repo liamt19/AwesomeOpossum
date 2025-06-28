@@ -226,7 +226,7 @@ namespace AwesomeOpossum
 
             Stopwatch sw = Stopwatch.StartNew();
 
-            Span<ScoredMove> list = stackalloc ScoredMove[MoveListSize];
+            var list = stackalloc ScoredMove[MoveListSize];
             int size = pos.GenLegal(list);
 
             for (int i = 0; i < size; i++)

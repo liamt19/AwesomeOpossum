@@ -44,7 +44,7 @@ namespace AwesomeOpossum.Logic.Core
         public StateInfo* NextState => (State + 1);
         public bool InCheck => popcount(State->Checkers) == 1;
         public bool InDoubleCheck => popcount(State->Checkers) == 2;
-        public bool Checked => popcount(State->Checkers) != 0;
+        public bool Checked => State->Checkers != 0;
 
         public ulong Hash => State->Hash;
         public ulong PawnHash => State->PawnHash;
@@ -179,7 +179,7 @@ namespace AwesomeOpossum.Logic.Core
         /// <returns>True if <paramref name="moveStr"/> was a recognized and legal move.</returns>
         public bool TryMakeMove(string moveStr)
         {
-            Span<ScoredMove> list = stackalloc ScoredMove[MoveListSize];
+            var list = stackalloc ScoredMove[MoveListSize];
             int size = GenLegal(list);
             for (int i = 0; i < size; i++)
             {
@@ -205,7 +205,7 @@ namespace AwesomeOpossum.Logic.Core
         /// <returns>True if <paramref name="moveStr"/> was a recognized and legal move.</returns>
         public bool TryFindMove(string moveStr, out Move move)
         {
-            Span<ScoredMove> list = stackalloc ScoredMove[MoveListSize];
+            var list = stackalloc ScoredMove[MoveListSize];
             int size = GenLegal(list);
             for (int i = 0; i < size; i++)
             {

@@ -1,4 +1,6 @@
-﻿namespace AwesomeOpossum.Logic.Core
+﻿using AwesomeOpossum.Logic.MCTS;
+
+namespace AwesomeOpossum.Logic.Core
 {
     public unsafe partial class Position
     {
@@ -249,22 +251,37 @@
         }
 
 
-        /// <summary>
-        /// Generates the pseudo-legal moves for all of the pieces of type <paramref name="pt"/>, placing them into the 
-        /// ScoredMove <paramref name="list"/> starting at the index <paramref name="size"/> and returning the new number
-        /// of moves in the list.
-        /// <para></para>
-        /// Only moves which have a To square whose bit is set in <paramref name="targets"/> will be generated.
-        /// <br></br>
-        /// For example:
-        /// <br></br>
-        /// When generating captures, <paramref name="targets"/> should be set to our opponent's color mask.
-        /// <br></br>
-        /// When generating evasions, <paramref name="targets"/> should be set to the <see cref="LineBB"/> between our king and the checker, which is the mask
-        /// of squares that would block the check or capture the piece giving check.
-        /// <para></para>
-        /// If <paramref name="checks"/> is true, then only pseudo-legal moves that give check will be generated.
-        /// </summary>
+        public (uint nLegal, float maxPolicy) GenerateAndScoreLegals(ScoredMove* legal)
+        {
+            int numMoves = Checked ? GenAll<GenEvasions>(legal) : GenAll<GenNonEvasions>(legal);
+
+            int ourKing = State->KingSquares[ToMove];
+            int theirKing = State->KingSquares[Not(ToMove)];
+            ulong pinned = State->BlockingPieces[ToMove];
+
+            float maxPolicy = float.MinValue;
+
+            ScoredMove* curr = legal;
+            ScoredMove* end = legal + numMoves;
+            while (curr != end)
+            {
+                if (!IsLegal(curr->Move, ourKing, theirKing, pinned))
+                {
+                    *curr = *--end;
+                    numMoves--;
+                }
+                else
+                {
+                    curr->Score = SearchUtils.PolicyForMove(this, curr->Move);
+                    maxPolicy = MathF.Max(maxPolicy, curr->Score);
+                    ++curr;
+                }
+            }
+
+            return ((uint)numMoves, maxPolicy);
+        }
+
+
         public int GenNormal(ScoredMove* list, int pt, ulong targets, int size)
         {
             // TODO: JIT seems to prefer having separate methods for each piece type, instead of a 'pt' parameter
@@ -289,20 +306,6 @@
 
 
         /// <summary>
-        /// <inheritdoc cref="GenLegal(ScoredMove*)"/>
-        /// </summary>
-        public int GenLegal(Span<ScoredMove> legal)
-        {
-            //  The Span that this method receives is almost certainly already pinned (created via 'stackalloc'),
-            //  but fixing it here is essentially free performance-wise and lets us use Span's when possible.
-            fixed (ScoredMove* ptr = legal)
-            {
-                return GenLegal(ptr);
-            }
-        }
-
-
-        /// <summary>
         /// Generates the pseudo-legal evasion or non-evasion moves for the position, depending on if the side to move is in check.
         /// The moves are placed into the array that <paramref name="pseudo"/> points to, 
         /// and the number of moves that were created is returned.
@@ -313,14 +316,5 @@
                                           : GenAll<GenNonEvasions>(pseudo);
         }
 
-
-        /// <summary>
-        /// <inheritdoc cref="GenPseudoLegal(ScoredMove*)"/>
-        /// </summary>
-        public int GenPseudoLegalQS(ScoredMove* pseudo)
-        {
-            return (State->Checkers != 0) ? GenAll<GenEvasions>(pseudo)
-                                          : GenAll<GenNoisy>   (pseudo);
-        }
     }
 }

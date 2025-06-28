@@ -207,16 +207,8 @@ public unsafe class Tree
         ref Node thisNode = ref this[nodePtr];
 
         ScoredMove* moves = stackalloc ScoredMove[256];
-        uint count = (uint)pos.GenLegal(moves);
-
         PolicyNetwork.RefreshPolicyAccumulator(pos);
-
-        float maxScore = float.MinValue;
-        for (uint i = 0; i < count; i++)
-        {
-            moves[i].Score = SearchUtils.PolicyForMove(pos, moves[i].Move);
-            maxScore = MathF.Max(maxScore, moves[i].Score);
-        }
+        (uint count, float maxScore) = pos.GenerateAndScoreLegals(moves);
 
         if (!ReserveNodes(count, out NodePointer newPtr))
             return false;

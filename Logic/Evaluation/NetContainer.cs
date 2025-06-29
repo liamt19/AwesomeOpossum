@@ -4,7 +4,7 @@
 
 namespace AwesomeOpossum.Logic.Evaluation;
 
-public unsafe struct ValueNetContainer<T, W>
+public readonly unsafe struct ValueNetContainer<T, W>
 {
     public readonly T* FTWeights;
     public readonly T* FTBiases;
@@ -20,7 +20,7 @@ public unsafe struct ValueNetContainer<T, W>
     }
 }
 
-public unsafe struct PolicyNetContainer<T, W>
+public readonly unsafe struct PolicyNetContainer<T, W>
 {
     public readonly T* FTWeights;
     public readonly T* FTBiases;

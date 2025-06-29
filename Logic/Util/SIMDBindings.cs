@@ -28,8 +28,12 @@ namespace AwesomeOpossum.Logic.Util
         {
             HasBindings = false;
 
+            var valueFuncName = $"EvaluateImpl{ValueNetwork.L1_SIZE}";
+
             PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
-            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)(&ValueNetwork.EvaluateImpl);
+
+            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)
+                typeof(ValueNetwork).GetMethod(valueFuncName, BindingFlags.Public | BindingFlags.Static).MethodHandle.GetFunctionPointer();
 
             if (!IsOSPlatform(OSPlatform.Windows) && !IsOSPlatform(OSPlatform.Linux))
                 return;
@@ -55,7 +59,7 @@ namespace AwesomeOpossum.Logic.Util
             try
             {
                 PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
-                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, "ValueEvaluate");
+                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, $"ValueEvaluate{ValueNetwork.L1_SIZE}");
             }
             catch (Exception e)
             {

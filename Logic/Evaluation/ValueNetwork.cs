@@ -24,13 +24,13 @@ namespace AwesomeOpossum.Logic.Evaluation
             }
         }
 
-        public const int INPUT_BUCKETS = 6;
+        public const int INPUT_BUCKETS = 1;
         public const int INPUT_SIZE = 768;
-        public const int L1_SIZE = 512;
-        public const int OUTPUT_BUCKETS = 8;
+        public const int L1_SIZE = 64;
+        public const int OUTPUT_BUCKETS = 1;
 
         private const int BUCKET_DIV = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-        private const int QA = 255;
+        private const int QA = 256;
         private const int QB = 64;
         public const int OUTPUT_SCALE = 400;
 
@@ -45,14 +45,14 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static ReadOnlySpan<int> KingBuckets =>
         [
-            0, 0, 1, 1,  7,  7,  6,  6,
-            2, 2, 3, 3,  9,  9,  8,  8,
-            2, 2, 3, 3,  9,  9,  8,  8,
-            4, 4, 4, 4, 10, 10, 10, 10,
-            4, 4, 4, 4, 10, 10, 10, 10,
-            5, 5, 5, 5, 11, 11, 11, 11,
-            5, 5, 5, 5, 11, 11, 11, 11,
-            5, 5, 5, 5, 11, 11, 11, 11,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 0, 0, 1, 1, 1, 1,
         ];
 
 
@@ -155,48 +155,6 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
-        [UnmanagedCallersOnly]
-        public static int EvaluateImpl(short* stmData, short* ntmData, short* l1Weights, short l1Bias)
-        {
-            Vector256<short> maxVec = Vector256.Create((short)QA);
-            Vector256<short> zeroVec = Vector256<short>.Zero;
-            Vector256<int> sum = Vector256<int>.Zero;
-
-            int SimdChunks = L1_SIZE / Vector256<short>.Count;
-
-            var ourData = (Vector256<short>*)stmData;
-            var theirData = (Vector256<short>*)ntmData;
-            var ourWeights = (Vector256<short>*)(&l1Weights[0]);
-            var theirWeights = (Vector256<short>*)(&l1Weights[L1_SIZE]);
-            for (int i = 0; i < SimdChunks; i++)
-            {
-                Vector256<short> clamp = Vector256.Min(maxVec, Vector256.Max(zeroVec, ourData[i]));
-                Vector256<short> mult = clamp * ourWeights[i];
-
-                (var mLo, var mHi) = Vector256.Widen(mult);
-                (var cLo, var cHi) = Vector256.Widen(clamp);
-
-                sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
-            }
-
-            for (int i = 0; i < SimdChunks; i++)
-            {
-                Vector256<short> clamp = Vector256.Min(maxVec, Vector256.Max(zeroVec, theirData[i]));
-                Vector256<short> mult = clamp * theirWeights[i];
-
-                (var mLo, var mHi) = Vector256.Widen(mult);
-                (var cLo, var cHi) = Vector256.Widen(clamp);
-
-                sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
-            }
-
-            int output = Vector256.Sum(sum);
-            output = (output / QA) + l1Bias;
-
-            return output * OUTPUT_SCALE / (QA * QB);
-        }
-
-
         [MethodImpl(Inline)]
         private static int FeatureIndexSingle(int pc, int pt, int sq, int kingSq, int perspective)
         {
@@ -217,6 +175,8 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             return ((768 * KingBuckets[kingSq]) + ((pc ^ perspective) * ColorStride) + (pt * PieceStride) + (sq)) * L1_SIZE;
         }
+
+
 
     }
 }

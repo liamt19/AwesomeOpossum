@@ -4,16 +4,17 @@
 
 /.vs/AwesomeOpossum
 /.vs/ProjectEvaluation
-/AwesomeOpossum.csproj.user
-/Properties/PublishProfiles/*.user
-/Properties/launchSettings.json
+/src/AwesomeOpossum/AwesomeOpossum.csproj.user
+/src/AwesomeOpossum/Properties/PublishProfiles/*.user
+/src/AwesomeOpossum/bin
+/src/AwesomeOpossum/obj
+/src/AwesomeOpossum/TB_Files
+/src/AwesomeOpossum/data
 
-/bin
-/obj
-/TB_Files
-/data
+src/Generators/bin
+src/Generators/obj
 
-AwesomeOpossum
+/AwesomeOpossum
 
 *.exe
 *.pdb

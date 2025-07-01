@@ -14,12 +14,12 @@ public static class DatagenParameters
 
     public const int RandomPlies = 6;
 
-    public const int SoftNodeLimit = 15000;
+    public const int SoftNodeLimit = 12000;
     public const int DepthLimit = 14;
 
     public const bool DFRC = true;
 
-    public const bool UseBook = true;
+    public const bool UseBook = false;
     public const string BookPath = "DFRC_4852_v1.epd";
 }
 
@@ -351,21 +351,24 @@ public static unsafe class Selfplay
 
         var (src, dst) = m.Unpack();
 
-        if ((src ^ dst) == 16 && pos.bb.GetPieceAtIndex(src) == Pawn)
-            f = 1;
-        else if (m.IsEnPassant)
-            f = 5;
-        else if (m.IsCastle)
+        if (m.IsCastle)
         {
             f = (dst > src) ? 2 : 3;
             dst = m.CastlingKingSquare();
         }
+        else
+        {
+            if ((src ^ dst) == 16 && pos.bb.GetPieceAtIndex(src) == Pawn)
+                f = 1;
+            else if (m.IsEnPassant)
+                f = 5;
 
-        if (pos.bb.GetPieceAtIndex(dst) != None)
-            f |= 4;
+            if (pos.bb.GetPieceAtIndex(dst) != None)
+                f |= 4;
 
-        if (m.IsPromotion)
-            f |= (0b0111 + m.PromotionTo);
+            if (m.IsPromotion)
+                f |= (0b0111 + m.PromotionTo);
+        }
 
         return new Move((ushort)((src << 10) | (dst << 4) | f));
     }

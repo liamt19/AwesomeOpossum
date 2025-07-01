@@ -35,7 +35,7 @@ namespace AwesomeOpossum.Logic.Datagen
 
         private static void RefillLoop()
         {
-            int nextLineIndex = 0;
+            int nextLineIndex = Random.Shared.Next(0, BookLines.Count);
             while (true)
             {
                 for (int queueIndex = 0; queueIndex < NumQueues; queueIndex++)

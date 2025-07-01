@@ -95,6 +95,13 @@ public unsafe class Tree
         TT.Clear();
     }
 
+    public void ClearFast()
+    {
+        Filled[0] = Filled[1] = 0;
+        CurrentHalf = 0;
+        TT.Clear();
+    }
+
 
     public void ClearHalf(int half) => Filled[half] = 0;
 
@@ -202,6 +209,9 @@ public unsafe class Tree
     }
 
 
+#if DATAGEN
+    [SkipLocalsInit]
+#endif
     public bool Expand(Position pos, NodePointer nodePtr, uint depth)
     {
         ref Node thisNode = ref this[nodePtr];

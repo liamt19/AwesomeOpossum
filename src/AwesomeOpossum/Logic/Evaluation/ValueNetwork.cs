@@ -24,7 +24,7 @@ namespace AwesomeOpossum.Logic.Evaluation
             }
         }
 
-        public const int INPUT_BUCKETS = 1;
+        public const int INPUT_BUCKETS = 2;
         public const int INPUT_SIZE = 768;
         public const int L1_SIZE = 256;
         public const int OUTPUT_BUCKETS = 1;
@@ -45,14 +45,14 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static ReadOnlySpan<int> KingBuckets =>
         [
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
-            0, 0, 0, 0, 1, 1, 1, 1,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
         ];
 
 

@@ -67,6 +67,10 @@ public unsafe class Tree
         Nodes = AlignedAllocZeroedHuge<Node>((nuint)TotalNodes);
         NodesPerHalf = nodesToAlloc / 2;
 
+#if DATAGEN
+        entriesToAlloc *= 2;
+#endif
+
         TT.Resize(entriesToAlloc);
 
         Clear();

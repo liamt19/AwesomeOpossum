@@ -10,11 +10,11 @@ namespace AwesomeOpossum.Logic.Datagen;
 
 public static class DatagenParameters
 {
-    public const int HashSize = 16;
+    public const int HashSize = 8;
 
     public const int RandomPlies = 6;
 
-    public const int SoftNodeLimit = 12000;
+    public const int SoftNodeLimit = 10000;
     public const int DepthLimit = 14;
 
     public const bool DFRC = true;

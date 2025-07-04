@@ -338,6 +338,10 @@ namespace AwesomeOpossum.Logic.Threads
 
         public bool NodeLimitReached()
         {
+#if DATAGEN
+            return (Nodes >= HardNodeLimit);
+#endif
+
             if (SearchOptions.Threads == 1)
                 return Nodes >= HardNodeLimit;
 

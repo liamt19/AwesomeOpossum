@@ -27,7 +27,7 @@ namespace AwesomeOpossum.Logic.Evaluation
         public const int INPUT_BUCKETS = 2;
         public const int INPUT_SIZE = 768;
         public const int L1_SIZE = 256;
-        public const int OUTPUT_BUCKETS = 1;
+        public const int OUTPUT_BUCKETS = 8;
 
         private const int BUCKET_DIV = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
         private const int QA = 256;

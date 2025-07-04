@@ -30,10 +30,23 @@ namespace AwesomeOpossum.Logic.Util
 
             var valueFuncName = $"EvaluateImpl{ValueNetwork.L1_SIZE}";
 
-            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
+            try
+            {
+                PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
+                ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)
+                    typeof(ValueNetwork).GetMethod(valueFuncName, BindingFlags.Public | BindingFlags.Static).MethodHandle.GetFunctionPointer();
+            }
+            catch (NullReferenceException e)
+            {
+                var m = typeof(ValueNetwork).GetMethods(BindingFlags.Public | BindingFlags.Static).ToList();
+                Console.WriteLine("It appears that the source generator didn't run!");
+                Console.WriteLine($"There should be a method called {valueFuncName} in this list -> [{string.Join(", ", m.Select(x => x.Name))}].");
+                Console.WriteLine($"This is going to report a bad bench and exit.");
 
-            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)
-                typeof(ValueNetwork).GetMethod(valueFuncName, BindingFlags.Public | BindingFlags.Static).MethodHandle.GetFunctionPointer();
+                Console.WriteLine($"info string 1 seconds");
+                Console.WriteLine($"1 nodes 1 nps");
+                Environment.Exit(0);
+            }
 
             if (!IsOSPlatform(OSPlatform.Windows) && !IsOSPlatform(OSPlatform.Linux))
                 return;

@@ -11,9 +11,6 @@
 /src/AwesomeOpossum/TB_Files
 /src/AwesomeOpossum/data
 
-src/Generators/bin
-src/Generators/obj
-
 /AwesomeOpossum
 
 *.exe

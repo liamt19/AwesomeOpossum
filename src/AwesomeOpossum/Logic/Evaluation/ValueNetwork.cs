@@ -155,6 +155,48 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
+        [UnmanagedCallersOnly]
+        public static int EvaluateImpl(short* stmData, short* ntmData, short* l1Weights, short l1Bias)
+        {
+            Vector256<short> maxVec = Vector256.Create((short)QA);
+            Vector256<short> zeroVec = Vector256<short>.Zero;
+            Vector256<int> sum = Vector256<int>.Zero;
+
+            int SimdChunks = L1_SIZE / Vector256<short>.Count;
+
+            var ourData = (Vector256<short>*)stmData;
+            var theirData = (Vector256<short>*)ntmData;
+            var ourWeights = (Vector256<short>*)(&l1Weights[0]);
+            var theirWeights = (Vector256<short>*)(&l1Weights[L1_SIZE]);
+            for (int i = 0; i < SimdChunks; i++)
+            {
+                Vector256<short> clamp = Vector256.Min(maxVec, Vector256.Max(zeroVec, ourData[i]));
+                Vector256<short> mult = clamp * ourWeights[i];
+
+                (var mLo, var mHi) = Vector256.Widen(mult);
+                (var cLo, var cHi) = Vector256.Widen(clamp);
+
+                sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
+            }
+
+            for (int i = 0; i < SimdChunks; i++)
+            {
+                Vector256<short> clamp = Vector256.Min(maxVec, Vector256.Max(zeroVec, theirData[i]));
+                Vector256<short> mult = clamp * theirWeights[i];
+
+                (var mLo, var mHi) = Vector256.Widen(mult);
+                (var cLo, var cHi) = Vector256.Widen(clamp);
+
+                sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
+            }
+
+            int output = Vector256.Sum(sum);
+            output = (output / QA) + l1Bias;
+
+            return output * OUTPUT_SCALE / (QA * QB);
+        }
+
+
         [MethodImpl(Inline)]
         private static int FeatureIndexSingle(int pc, int pt, int sq, int kingSq, int perspective)
         {

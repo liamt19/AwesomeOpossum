@@ -16,6 +16,8 @@ namespace AwesomeOpossum
 
         public static void Main(string[] args)
         {
+            InitializeAll();
+
             if (args.Length != 0)
             {
                 if (args[0] == "bench")
@@ -30,8 +32,6 @@ namespace AwesomeOpossum
                     Environment.Exit(0);
                 }
             }
-
-            InitializeAll();
 
             p = new Position(owner: GlobalSearchPool.MainThread);
             info = new SearchInformation(p);
@@ -69,6 +69,10 @@ namespace AwesomeOpossum
 
             //  Give the VS debugger a friendly name for the main program thread
             Thread.CurrentThread.Name = "MainThread";
+
+            //  Touch this to run the ctor prior to the first time PolicyEvaluateFn/ValueEvaluateFn is invoked
+            //  (this is purely cosmetic)
+            GC.KeepAlive(SIMDBindings.HasBindings);
         }
 
 

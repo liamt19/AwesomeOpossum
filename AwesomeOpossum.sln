@@ -5,8 +5,6 @@ VisualStudioVersion = 17.13.35825.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AwesomeOpossum", "src\AwesomeOpossum\AwesomeOpossum.csproj", "{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Generators", "src\Generators\Generators.csproj", "{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Avx512|x64 = Avx512|x64
@@ -23,14 +21,6 @@ Global
 		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Debug|x64.Build.0 = Debug|x64
 		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Release|x64.ActiveCfg = Release|x64
 		{976DD843-12B8-84EB-A3FD-24AEF4F7A89A}.Release|x64.Build.0 = Release|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Avx512|x64.ActiveCfg = Release|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Avx512|x64.Build.0 = Release|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Datagen|x64.ActiveCfg = Release|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Datagen|x64.Build.0 = Release|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Debug|x64.ActiveCfg = Debug|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Debug|x64.Build.0 = Debug|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Release|x64.ActiveCfg = Release|x64
-		{ECB2E4DB-5D34-499F-BA61-DF50B32A9560}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

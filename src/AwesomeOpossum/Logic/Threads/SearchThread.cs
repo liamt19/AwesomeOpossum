@@ -230,7 +230,11 @@ namespace AwesomeOpossum.Logic.Threads
 
         public void ClearTree()
         {
+#if DATAGEN
+            Tree.ClearFast();
+#else
             Tree.Clear();
+#endif
             Tree.PushRoot(RootPosition);
         }
 
@@ -263,6 +267,11 @@ namespace AwesomeOpossum.Logic.Threads
 
                 if (scoreMaybe is null)
                 {
+#if DATAGEN
+                    SetStop(true);
+                    continue;
+#endif
+
                     //  Tree is full -> Switch halves + continue
                     Tree.SwitchHalves();
                     continue;
@@ -324,21 +333,19 @@ namespace AwesomeOpossum.Logic.Threads
                 }
             }
         }
-        
+
 
 
         public bool NodeLimitReached()
         {
-            if (SearchOptions.Threads == 1)
-            {
-                return Nodes >= HardNodeLimit;
-            }
-            else if (PlayoutIteration % 2048 == 0)
-            {
-                return AssocPool.GetNodeCount() >= HardNodeLimit;
-            }
+#if DATAGEN
+            return (Nodes >= HardNodeLimit);
+#endif
 
-            return false;
+            if (SearchOptions.Threads == 1)
+                return Nodes >= HardNodeLimit;
+
+            return (PlayoutIteration % 2048 == 0) && (AssocPool.GetNodeCount() >= HardNodeLimit);
         }
 
 

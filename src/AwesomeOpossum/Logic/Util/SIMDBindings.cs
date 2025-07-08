@@ -55,7 +55,7 @@ namespace AwesomeOpossum.Logic.Util
             try
             {
                 PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
-                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, "ValueEvaluate");
+                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, $"ValueEvaluate{ValueNetwork.L1_SIZE}");
             }
             catch (Exception e)
             {

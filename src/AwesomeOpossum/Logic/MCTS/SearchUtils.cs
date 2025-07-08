@@ -1,4 +1,7 @@
-﻿using AwesomeOpossum.Logic.Evaluation;
+﻿
+#define DATAGEN_GINI
+
+using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
 using System;
 using System.Collections.Generic;
@@ -28,7 +31,7 @@ public static unsafe class SearchUtils
     {
         var expl = float.Exp(ExplTau * float.Log(Math.Max(node.Visits, 1)));
 
-#if !DATAGEN
+#if !DATAGEN || DATAGEN_GINI
         var gini = float.Min(GiniBase - GiniScale * float.Log(node.Impurity + 0.001f), GiniMin);
         expl *= gini;
 #endif

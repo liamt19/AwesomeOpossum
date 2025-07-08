@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <Platforms>x64</Platforms>
@@ -16,6 +16,7 @@
     <GenerateDocumentationFile>False</GenerateDocumentationFile>
     <GenerateAssemblyInfo>True</GenerateAssemblyInfo>
     <GenerateDependencyFile>False</GenerateDependencyFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
     <EnablePreviewFeatures>True</EnablePreviewFeatures>
     <LangVersion>Latest</LangVersion>
@@ -23,7 +24,7 @@
     
     <Configurations>Debug;Release;Datagen;Avx512</Configurations>
     <EnforceCodeStyleInBuild>False</EnforceCodeStyleInBuild>
-    <RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringBuild>True</RunAnalyzersDuringBuild>
     <AnalysisLevel>latest-all</AnalysisLevel>
 
     <PublishTrimmed>True</PublishTrimmed>
@@ -47,6 +48,10 @@
     <TieredCompilationQuickJitForLoops>true</TieredCompilationQuickJitForLoops>
     <ServerGarbageCollection>false</ServerGarbageCollection>
 
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)tmp</CompilerGeneratedFilesOutputPath>
+
+
   </PropertyGroup>
 
   <PropertyGroup>
@@ -66,12 +71,12 @@
 
 
   <PropertyGroup>
-    <ReadEvalFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)value.txt))</ReadEvalFile>
+    <ReadEvalFile>$([System.IO.File]::ReadAllText($(MSBuildStartupDirectory)\value.txt))</ReadEvalFile>
     <EVALFILE_NAME Condition="'$(EVALFILE)' == ''">$(ReadEvalFile.Trim())</EVALFILE_NAME>
     <EVALFILE Condition="'$(EVALFILE)' == ''">$(EVALFILE_NAME).bin</EVALFILE>
     <EVAL_NETWORK_URL>https://github.com/liamt19/opossum-nets/releases/download/$(EVALFILE_NAME)/$(EVALFILE)</EVAL_NETWORK_URL>
 
-    <ReadPolicyFile>$([System.IO.File]::ReadAllText($(MSBuildThisFileDirectory)policy.txt))</ReadPolicyFile>
+    <ReadPolicyFile>$([System.IO.File]::ReadAllText($(MSBuildStartupDirectory)\policy.txt))</ReadPolicyFile>
     <POLICYFILE_NAME Condition="'$(POLICYFILE)' == ''">$(ReadPolicyFile.Trim())</POLICYFILE_NAME>
     <POLICYFILE Condition="'$(POLICYFILE)' == ''">$(POLICYFILE_NAME).bin</POLICYFILE>
     <POLICY_NETWORK_URL>https://github.com/liamt19/opossum-nets/releases/download/$(POLICYFILE_NAME)/$(POLICYFILE)</POLICY_NETWORK_URL>
@@ -109,10 +114,15 @@
   <PropertyGroup Condition="'$(BINDINGS)' == ''">
     <BINDINGS>SIMDBindings.dll</BINDINGS>
   </PropertyGroup>
-  
+
+  <PropertyGroup>
+    <BINDINGS_PATH>$(MSBuildStartupDirectory)\src\Bindings\$(BINDINGS)</BINDINGS_PATH>
+  </PropertyGroup>
+
   <ItemGroup>
-    <EmbeddedResource Condition="'$(BINDINGS)' != '' AND Exists('$(BINDINGS)')" Include="$(BINDINGS)" />
+    <EmbeddedResource Condition="'$(BINDINGS)' != '' AND Exists('$(BINDINGS_PATH)')" Include="$(BINDINGS_PATH)" />
   </ItemGroup>
+
   
   
 

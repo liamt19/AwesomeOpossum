@@ -132,8 +132,8 @@ namespace AwesomeOpossum.Logic.Evaluation
             var bVecs = (Vector256<short>*)bAccumulation;
             for (int i = 0; i < SimdChunks; i++)
             {
-                wVecs[i] = Vector256.Clamp(wVecs[i], zero, one);
-                bVecs[i] = Vector256.Clamp(bVecs[i], zero, one);
+                wVecs[i] = Vector256.Min(Vector256.Max(wVecs[i], zero), one);
+                bVecs[i] = Vector256.Min(Vector256.Max(bVecs[i], zero), one);
             }
         }
 

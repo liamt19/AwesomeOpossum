@@ -3,29 +3,31 @@ ifndef EXE
 	EXE = AwesomeOpossum
 endif
 
-ifndef OUT_PATH
-	OUT_PATH = .\\
-endif
-
 ifeq ($(OS),Windows_NT) 
 	BINARY_SUFFIX = .exe
 	PDB_SUFF = pdb
-	DLL_SUFF = dll
+	BINDINGS_FILE = SIMDBindings.dll
 
 	RENAME_CMD = -ren
 	RM_FILE_CMD = del
 	RM_FOLDER_CMD = rmdir /s /q
+
+	DETECT_CLANGXX := $(shell where clang++ 2>nul)
+	DETECT_CLANG   := $(shell where clang 2>nul)
+	DETECT_GPP     := $(shell where g++ 2>nul)
 else
 	PDB_SUFF = dbg
 	BINARY_SUFFIX = 
-	DLL_SUFF = so
+	BINDINGS_FILE = SIMDBindings.so
 
 	RENAME_CMD = mv
 	RM_FILE_CMD = rm
 	RM_FOLDER_CMD = rm -rf
-endif
 
-BINDINGS_FILE = SIMDBindings.$(DLL_SUFF)
+	DETECT_CLANGXX := $(shell which clang++ 2>/dev/null)
+	DETECT_CLANG   := $(shell which clang 2>/dev/null)
+	DETECT_GPP     := $(shell which g++ 2>/dev/null)
+endif
 
 FULL_EXE_PATH = $(EXE)$(BINARY_SUFFIX)
 RM_PDB = -$(RM_FILE_CMD) $(EXE).$(PDB_SUFF)
@@ -74,37 +76,38 @@ DATAGEN_OPTS = $(COMMON_OPTS) -c Datagen
 AOT_OPTS = $(COMMON_OPTS) -p:PublishAOT=true -p:PublishSingleFile=false -p:IS_AOT=true -p:IlcInstructionSet=$(INST_SET)
 
 
-
+CXX := $(firstword $(DETECT_CLANGXX) $(DETECT_CLANG) $(DETECT_GPP))
+PUB_CMD = dotnet publish src/AwesomeOpossum/AwesomeOpossum.csproj
 
 .PHONY: release FORCE
 .DEFAULT_GOAL := release
 
 
 $(BINDINGS_FILE): FORCE
-	-clang++ -std=c++20 -O3 -funroll-loops -march=x86-64-v3 -shared -o $(BINDINGS_FILE) ./Bindings/simd.cpp
+	-$(CXX) -std=c++20 -O3 -funroll-loops -march=x86-64-v3 -shared -o ./src/Bindings/$(BINDINGS_FILE) ./src/Bindings/simd.cpp
 bindings: $(BINDINGS_FILE)
 
 
 #  Try building the non-AOT version first, and then try to build the AOT version if possible.
 #  This recipe should always work, but AOT requires some additional setup so that recipe may fail.
 release: $(BINDINGS_FILE)
-	dotnet publish . $(BUILD_OPTS)
+	$(PUB_CMD) $(BUILD_OPTS)
 	$(FIX_OUTPUT)
 
 datagen: $(BINDINGS_FILE)
-	dotnet publish . $(DATAGEN_OPTS)
+	$(PUB_CMD) $(DATAGEN_OPTS)
 	$(FIX_OUTPUT)
 
 #  This will/might only succeed if you have the right toolchain
 aot:
-	-dotnet publish . $(AOT_OPTS)
+	-$(PUB_CMD) $(AOT_OPTS)
 
 512: $(BINDINGS_FILE)
-	dotnet publish . $(BUILD_OPTS) -p:DefineConstants="AVX512"
+	$(PUB_CMD) $(BUILD_OPTS) -p:DefineConstants="AVX512"
 	$(FIX_OUTPUT)
 
 aot_512:
-	-dotnet publish . $(AOT_OPTS) -p:DefineConstants="AVX512"
+	-$(PUB_CMD) $(AOT_OPTS) -p:DefineConstants="AVX512"
 
 all:
 	$(MAKE) aot INST_SET=x86-x64

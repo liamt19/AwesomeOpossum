@@ -1,33 +1,42 @@
 ﻿
-#pragma warning disable CS8500 // This takes the address of, gets the size of, or declares a pointer to a managed type
 
+using AwesomeOpossum.Logic.MCTS;
+using AwesomeOpossum.Logic.Threads;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using static AwesomeOpossum.Logic.Datagen.DatagenParameters;
 
-using AwesomeOpossum.Logic.Threads;
-using AwesomeOpossum.Logic.MCTS;
-using System.Runtime.CompilerServices;
-
 namespace AwesomeOpossum.Logic.Datagen;
+
+public static class DatagenParameters
+{
+    public const int HashSize = 8;
+
+    public const int RandomPlies = 6;
+
+    public const int SoftNodeLimit = 10000;
+    public const int DepthLimit = 14;
+
+    public const bool DFRC = true;
+
+    public const bool UseBook = false;
+    public const string BookPath = "DFRC_4852_v1.epd";
+}
 
 public static unsafe class Selfplay
 {
     private static int Seed = Environment.TickCount;
     private static readonly ThreadLocal<Random> ThreadRNG = new(() => new Random(Interlocked.Increment(ref Seed)));
 
-    public static void RunValueGames(ulong gamesToRun, int threadID, ulong softNodeLimit = SoftNodeLimit, ulong depthLimit = DepthLimit, bool dfrc = false)
+    public static void RunValueGames(ulong gamesToRun, int threadID)
     {
-        SearchOptions.Hash = HashSize;
-        SearchOptions.UCI_Chess960 = dfrc;
-        TimeManager.RemoveSoftLimit();
-        TimeManager.RemoveHardLimit();
-
         Tree tree = new(HashSize);
         ref var rootNode = ref tree.RootNode;
         SearchThread thread = new(0) { Tree = tree, IsDatagen = true };
         Position pos = thread.RootPosition;
+        pos.IsChess960 = DFRC;
 
-        string fName = $"{(dfrc ? "dfrc_" : "")}{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.value.bin";
-        using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+        using var ostr = File.Open(Path.Combine(GetValueFolder(), OutFileName(threadID)), FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
         using var outWriter = new BinaryWriter(ostr);
 
         Span<MontyScoredMove> sd = stackalloc MontyScoredMove[MontyPack.MaxSize];
@@ -36,13 +45,14 @@ public static unsafe class Selfplay
         ulong totalPositions = 0, totalNodes = 0;
         ulong totalSearches = 0, totalFill = 0, totalIters = 0;
 
-        var info = SearchInformation.DatagenStandard(pos, softNodeLimit, (int)depthLimit);
+        var info = SearchInformation.DatagenStandard(pos, SoftNodeLimit, DepthLimit);
 
         for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
         {
             pack.Clear();
-            GetStartPos(thread, dfrc);
+            GetStartPos(thread, threadID);
             pack.startpos = MontyPosition.FromPosition(pos);
+            pack.rights = MontyCastling.FromPosition(pos);
 
             NodeStateKind playoutState = NodeStateKind.Unterminated;
 
@@ -85,20 +95,15 @@ public static unsafe class Selfplay
     }
 
 
-    public static void RunPolicyGames(ulong gamesToRun, int threadID, ulong softNodeLimit = SoftNodeLimit, ulong depthLimit = DepthLimit, bool dfrc = false)
+    public static void RunPolicyGames(ulong gamesToRun, int threadID)
     {
-        SearchOptions.Hash = HashSize;
-        SearchOptions.UCI_Chess960 = dfrc;
-        TimeManager.RemoveSoftLimit();
-        TimeManager.RemoveHardLimit();
-
         Tree tree = new(HashSize);
         ref var rootNode = ref tree.RootNode;
         SearchThread thread = new(0) { Tree = tree, IsDatagen = true };
         Position pos = thread.RootPosition;
+        pos.IsChess960 = DFRC;
 
-        string fName = $"{(dfrc ? "dfrc_" : "")}{softNodeLimit / 1000}k_{depthLimit}d_{threadID}.policy.bin";
-        using var ostr = File.Open(fName, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
+        using var ostr = File.Open(Path.Combine(GetPolicyFolder(), OutFileName(threadID)), FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
         using var outWriter = new BinaryWriter(ostr);
 
         Span<(Move move, uint visits)> distSpan = new (Move move, uint visits)[256];
@@ -109,12 +114,12 @@ public static unsafe class Selfplay
         ulong totalPositions = 0, totalNodes = 0;
         ulong totalSearches = 0, totalFill = 0, totalIters = 0;
 
-        var info = SearchInformation.DatagenStandard(pos, softNodeLimit, (int)depthLimit);
+        var info = SearchInformation.DatagenStandard(pos, SoftNodeLimit, DepthLimit);
 
         for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
         {
             pack.Clear();
-            GetStartPos(thread, dfrc);
+            GetStartPos(thread, threadID);
             pack.startpos = MontyPosition.FromPosition(pos);
 
             int moveNum = 0;
@@ -178,6 +183,54 @@ public static unsafe class Selfplay
     }
 
 
+    public static void DatagenProlog(ulong numGames, ulong threads, bool policy)
+    {
+#if !DATAGEN
+        Log($"WARN: Not compiled with DATAGEN defined! Gini is being used.");
+#endif
+
+        Log($"Kind:         {(policy ? "Policy" : "Value")}");
+        Log($"Threads:      {threads}");
+        Log($"Games/thread: {numGames:N0}");
+        Log($"Total games:  {numGames * threads:N0}");
+        Log($"Node limit:   {SoftNodeLimit:N0}");
+        Log($"Depth limit:  {DepthLimit}");
+        Log($"Variant:      {(DFRC ? "DFRC" : "Standard")}");
+        Log($"Book:         {(UseBook ? BookPath : "<None>")}");
+        Log($"Hit enter to begin...");
+        _ = Console.ReadLine();
+
+        SearchOptions.Hash = HashSize;
+        SearchOptions.UCI_Chess960 = DFRC;
+        TimeManager.RemoveSoftLimit();
+        TimeManager.RemoveHardLimit();
+    }
+
+    public static void SetupBookHandlerMaybe(ulong threads)
+    {
+        if (UseBook)
+            BookHandler.Initialize(BookPath, (int)threads);
+    }
+
+
+    private static string GetValueFolder()
+    {
+        string v = Path.Combine("data", "value");
+        try { Directory.CreateDirectory(v); } catch { }
+        return v;
+    }
+
+    private static string GetPolicyFolder()
+    {
+        string v = Path.Combine("data", "policy");
+        try { Directory.CreateDirectory(v); } catch { }
+        return v;
+    }
+
+    private static string OutFileName(int tid) => $"{(DFRC ? "dfrc_" : "")}{SoftNodeLimit / 1000}k_{DepthLimit}d_{tid}.bin";
+
+
+
     public static void SortDistribution(Span<(Move move, uint visits)> dist) => QuickSort(dist, 0, dist.Length - 1);
     private static void QuickSort(Span<(Move move, uint visits)> dist, int low, int high)
     {
@@ -211,7 +264,7 @@ public static unsafe class Selfplay
 
     // [35, 20, 20, 8, 12, 5]
     private static ReadOnlySpan<int> PieceProbs => [35, 55, 75, 83, 95, 100];
-    private static void GetStartPos(SearchThread thread, bool dfrc)
+    private static void GetStartPos(SearchThread thread, int threadID)
     {
         Position pos = thread.RootPosition;
         ref Bitboard bb = ref pos.bb;
@@ -238,12 +291,14 @@ public static unsafe class Selfplay
         {
             Retry:
 
-            if (dfrc)
+            if (UseBook)
+                pos.LoadFromFEN(BookHandler.GetStartpos(threadID));
+            else if (DFRC)
                 pos.SetupForDFRC(rand.Next(0, 960), rand.Next(0, 960));
             else
                 pos.LoadFromFEN(InitialFEN);
 
-            int randMoveCount = rand.Next(8, 9 + 1);
+            int randMoveCount = rand.Next(RandomPlies, RandomPlies + 1);
             for (int i = 0; i < randMoveCount; i++)
             {
                 int legals = pos.GenLegal(legalMoves);
@@ -296,21 +351,24 @@ public static unsafe class Selfplay
 
         var (src, dst) = m.Unpack();
 
-        if ((src ^ dst) == 16 && pos.bb.GetPieceAtIndex(src) == Pawn)
-            f = 1;
-        else if (m.IsEnPassant)
-            f = 5;
-        else if (m.IsCastle)
+        if (m.IsCastle)
         {
             f = (dst > src) ? 2 : 3;
             dst = m.CastlingKingSquare();
         }
+        else
+        {
+            if ((src ^ dst) == 16 && pos.bb.GetPieceAtIndex(src) == Pawn)
+                f = 1;
+            else if (m.IsEnPassant)
+                f = 5;
 
-        if (pos.bb.GetPieceAtIndex(dst) != None)
-            f |= 4;
+            if (pos.bb.GetPieceAtIndex(dst) != None)
+                f |= 4;
 
-        if (m.IsPromotion)
-            f |= (0b0111 + m.PromotionTo);
+            if (m.IsPromotion)
+                f |= (0b0111 + m.PromotionTo);
+        }
 
         return new Move((ushort)((src << 10) | (dst << 4) | f));
     }

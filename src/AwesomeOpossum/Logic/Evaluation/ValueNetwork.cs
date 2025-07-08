@@ -24,13 +24,13 @@ namespace AwesomeOpossum.Logic.Evaluation
             }
         }
 
-        public const int INPUT_BUCKETS = 6;
+        public const int INPUT_BUCKETS = 2;
         public const int INPUT_SIZE = 768;
         public const int L1_SIZE = 512;
         public const int OUTPUT_BUCKETS = 8;
 
         private const int BUCKET_DIV = ((32 + OUTPUT_BUCKETS - 1) / OUTPUT_BUCKETS);
-        private const int QA = 255;
+        private const int QA = 256;
         private const int QB = 64;
         public const int OUTPUT_SCALE = 400;
 
@@ -45,14 +45,14 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static ReadOnlySpan<int> KingBuckets =>
         [
-            0, 0, 1, 1,  7,  7,  6,  6,
-            2, 2, 3, 3,  9,  9,  8,  8,
-            2, 2, 3, 3,  9,  9,  8,  8,
-            4, 4, 4, 4, 10, 10, 10, 10,
-            4, 4, 4, 4, 10, 10, 10, 10,
-            5, 5, 5, 5, 11, 11, 11, 11,
-            5, 5, 5, 5, 11, 11, 11, 11,
-            5, 5, 5, 5, 11, 11, 11, 11,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
+            0, 0, 1, 1, 3, 3, 2, 2,
         ];
 
 
@@ -117,7 +117,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static void RefreshPerspective(Position pos, int perspective)
         {
-            ref Accumulator accumulator = ref *pos.State->Accumulator;
+            ref Accumulator accumulator = ref pos.ValueAccumulator;
             ref Bitboard bb = ref pos.bb;
 
             var ourAccumulation = (short*)accumulator[perspective];
@@ -141,7 +141,7 @@ namespace AwesomeOpossum.Logic.Evaluation
         public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
         public static int Evaluate(Position pos, int outputBucket)
         {
-            ref Accumulator accumulator = ref *pos.State->Accumulator;
+            ref Accumulator accumulator = ref pos.ValueAccumulator;
             RefreshAccumulator(pos);
 
             var stmData = (short*)accumulator[pos.ToMove];
@@ -217,6 +217,8 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             return ((768 * KingBuckets[kingSq]) + ((pc ^ perspective) * ColorStride) + (pt * PieceStride) + (sq)) * L1_SIZE;
         }
+
+
 
     }
 }

@@ -67,6 +67,10 @@ public unsafe class Tree
         Nodes = AlignedAllocZeroedHuge<Node>((nuint)TotalNodes);
         NodesPerHalf = nodesToAlloc / 2;
 
+#if DATAGEN
+        entriesToAlloc *= 2;
+#endif
+
         TT.Resize(entriesToAlloc);
 
         Clear();
@@ -92,6 +96,13 @@ public unsafe class Tree
             span.Fill(Node.Null);
         });
 
+        TT.Clear();
+    }
+
+    public void ClearFast()
+    {
+        Filled[0] = Filled[1] = 0;
+        CurrentHalf = 0;
         TT.Clear();
     }
 
@@ -202,6 +213,9 @@ public unsafe class Tree
     }
 
 
+#if DATAGEN
+    [SkipLocalsInit]
+#endif
     public bool Expand(Position pos, NodePointer nodePtr, uint depth)
     {
         ref Node thisNode = ref this[nodePtr];

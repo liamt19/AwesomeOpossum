@@ -16,6 +16,8 @@ namespace AwesomeOpossum
 
         public static void Main(string[] args)
         {
+            InitializeAll();
+
             if (args.Length != 0)
             {
                 if (args[0] == "bench")
@@ -30,8 +32,6 @@ namespace AwesomeOpossum
                     Environment.Exit(0);
                 }
             }
-
-            InitializeAll();
 
             p = new Position(owner: GlobalSearchPool.MainThread);
             info = new SearchInformation(p);
@@ -69,6 +69,10 @@ namespace AwesomeOpossum
 
             //  Give the VS debugger a friendly name for the main program thread
             Thread.CurrentThread.Name = "MainThread";
+
+            //  Touch this to run the ctor prior to the first time PolicyEvaluateFn/ValueEvaluateFn is invoked
+            //  (this is purely cosmetic)
+            GC.KeepAlive(SIMDBindings.HasBindings);
         }
 
 
@@ -418,60 +422,42 @@ namespace AwesomeOpossum
 
         private static void HandleDatagenCommand(string[] args)
         {
-            ulong nodes = DatagenParameters.SoftNodeLimit;
-            ulong depth = DatagenParameters.DepthLimit;
             ulong numGames = 1000000;
             ulong threads = 1;
-            bool dfrc = false;
             bool policy = false;
 
             args = args.Skip(1).ToArray();
 
-            if (ulong.TryParse(args.Where(x => x.EndsWith('n')).FirstOrDefault()?[..^1], out ulong selNodeLimit)) nodes = selNodeLimit;
-            if (ulong.TryParse(args.Where(x => x.EndsWith('d')).FirstOrDefault()?[..^1], out ulong selDepthLimit)) depth = selDepthLimit;
             if (ulong.TryParse(args.Where(x => x.EndsWith('g')).FirstOrDefault()?[..^1], out ulong selNumGames)) numGames = selNumGames;
             if (ulong.TryParse(args.Where(x => x.EndsWith('t')).FirstOrDefault()?[..^1], out ulong selThreads)) threads = selThreads;
 
-            dfrc = args.Any(x => (x.EqualsIgnoreCase("frc") || x.EqualsIgnoreCase("dfrc")));
             policy = args.Any(x => x.EqualsIgnoreCase("policy"));
 
-#if !DATAGEN
-            Log($"WARN: Not compiled with DATAGEN defined! Gini is being used.");
-#endif
-
-            Log($"Kind:         {(policy ? "Policy" : "Value")}");
-            Log($"Threads:      {threads}");
-            Log($"Games/thread: {numGames:N0}");
-            Log($"Total games:  {numGames * threads:N0}");
-            Log($"Node limit:   {nodes:N0}");
-            Log($"Depth limit:  {depth}");
-            Log($"Variant:      {(dfrc ? "DFRC" : "Standard")}");
-            Log($"Hit enter to begin...");
-            _ = Console.ReadLine();
-
+            Selfplay.DatagenProlog(numGames, threads, policy);
+            Selfplay.SetupBookHandlerMaybe(threads);
             ProgressBroker.StartMonitoring();
 
             if (policy)
             {
                 if (threads == 1) //  Let this run on the main thread to allow for debugging
-                    Selfplay.RunPolicyGames(numGames, 0, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                    Selfplay.RunPolicyGames(numGames, 0);
                 else
                 {
                     Parallel.For(0, (int)threads, new() { MaxDegreeOfParallelism = (int)threads }, (int i) =>
                     {
-                        Selfplay.RunPolicyGames(numGames, i, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                        Selfplay.RunPolicyGames(numGames, i);
                     });
                 }
             }
             else
             {
                 if (threads == 1)
-                    Selfplay.RunValueGames(numGames, 0, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                    Selfplay.RunValueGames(numGames, 0);
                 else
                 {
                     Parallel.For(0, (int)threads, new() { MaxDegreeOfParallelism = (int)threads }, (int i) =>
                     {
-                        Selfplay.RunValueGames(numGames, i, softNodeLimit: nodes, depthLimit: depth, dfrc: dfrc);
+                        Selfplay.RunValueGames(numGames, i);
                     });
                 }
             }

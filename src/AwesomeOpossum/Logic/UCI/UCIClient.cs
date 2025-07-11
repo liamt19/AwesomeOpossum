@@ -358,6 +358,7 @@ namespace AwesomeOpossum.Logic.UCI
                 nameof(SearchOptions.UCI_Chess960),
                 nameof(SearchOptions.UCI_ShowWDL),
                 nameof(SearchOptions.UCI_PrettyPrint),
+                nameof(SearchOptions.Minimal),
             ];
 
             foreach (var optName in Options.Keys)

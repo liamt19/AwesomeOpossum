@@ -10,6 +10,7 @@
         public static bool UCI_Chess960 = false;
         public static bool UCI_ShowWDL = false;
         public static bool UCI_PrettyPrint = true;
+        public static bool Minimal = false;
 
 
         public static float ExplTau = 0.6493f;

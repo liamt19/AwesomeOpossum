@@ -252,8 +252,9 @@ namespace AwesomeOpossum.Logic.Threads
 
             void Display()
             {
-                info.OnIterationUpdate?.Invoke(ref info);
                 outputTimer.Restart();
+                if (!Minimal)
+                    info.OnIterationUpdate?.Invoke(ref info);
             }
 
             Move bestMove = Move.Null, lastBestMove = Move.Null;
@@ -302,7 +303,7 @@ namespace AwesomeOpossum.Logic.Threads
 
                 if (Tree.RootNode.IsTerminal)
                 {
-                    info.OnIterationUpdate?.Invoke(ref info);
+                    Display();
                     SetStop(true);
                 }
 
@@ -332,6 +333,10 @@ namespace AwesomeOpossum.Logic.Threads
                         SetStop();
                 }
             }
+
+            //  Only 1 line, just before the bestmove ...
+            if (Minimal)
+                info.OnIterationUpdate?.Invoke(ref info);
         }
 
 

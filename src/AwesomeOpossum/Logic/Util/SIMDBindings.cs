@@ -16,7 +16,7 @@ namespace AwesomeOpossum.Logic.Util
         private static readonly IntPtr ValueEvaluateAddr;
 
         public static unsafe delegate* unmanaged<short*, short*, short*, int> PolicyEvaluateFn;
-        public static unsafe delegate* unmanaged<short*, short*, short*, short, int> ValueEvaluateFn;
+        public static unsafe delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float> ValueEvaluateFn;
 
 #if IsWindows
         private const string DEST_NAME = "SIMDBindings.dll";
@@ -29,7 +29,9 @@ namespace AwesomeOpossum.Logic.Util
             HasBindings = false;
 
             PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
-            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)(&ValueNetwork.EvaluateImpl);
+            ValueEvaluateFn = (delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float>)(&ValueNetwork.EvaluateImpl);
+
+            return;
 
             if (!IsOSPlatform(OSPlatform.Windows) && !IsOSPlatform(OSPlatform.Linux))
                 return;
@@ -52,10 +54,14 @@ namespace AwesomeOpossum.Logic.Util
                 return;
             }
 
+            var policyFuncName = $"ValueEvaluate{ValueNetwork.L1_SIZE}_{ValueNetwork.L2_SIZE}_{ValueNetwork.L3_SIZE}";
             try
             {
                 PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
-                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, $"ValueEvaluate{ValueNetwork.L1_SIZE}");
+                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, policyFuncName);
+
+                var SetupNNZAddr = NativeLibrary.GetExport(Handle, "SetupNNZ");
+                ((delegate* unmanaged<void>)SetupNNZAddr)();
             }
             catch (Exception e)
             {
@@ -64,7 +70,7 @@ namespace AwesomeOpossum.Logic.Util
             }
 
             PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)PolicyEvaluateAddr;
-            ValueEvaluateFn = (delegate* unmanaged<short*, short*, short*, short, int>)ValueEvaluateAddr;
+            ValueEvaluateFn = (delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float>)ValueEvaluateAddr;
 
             HasBindings = true;
             Log("Loaded SIMD Bindings!");

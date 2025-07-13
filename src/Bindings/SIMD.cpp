@@ -36,10 +36,10 @@ DLL_EXPORT void SetupNNZ() {
 }
 
 
-DLL_EXPORT i32 PolicyEvaluate(const i16* us, const i16* them, const i16* l1w) {
+template<i32 L1_SIZE>
+i32 PolicyEvaluateImpl(const i16* us, const i16* them, const i16* l1w) {
 
-    constexpr auto POLICY_L1_SIZE = 512;
-    const auto Stride = (POLICY_L1_SIZE / (sizeof(__m256i) / sizeof(i16))) / 2;
+    const auto Stride = (L1_SIZE / (sizeof(__m256i) / sizeof(i16))) / 2;
 
     vec_i32 sum = vec_setzero_epi32();
 
@@ -54,7 +54,7 @@ DLL_EXPORT i32 PolicyEvaluate(const i16* us, const i16* them, const i16* l1w) {
 
     data0 = reinterpret_cast<const __m256i*>(&them[0]);
     data1 = &data0[Stride];
-    weights = reinterpret_cast<const __m256i*>(&l1w[POLICY_L1_SIZE / 2]);
+    weights = reinterpret_cast<const __m256i*>(&l1w[L1_SIZE / 2]);
     for (i32 i = 0; i < Stride; i++) {
         const auto m0 = _mm256_mullo_epi16(data0[i], weights[i]);
         const auto m1 = _mm256_madd_epi16(data1[i], m0);
@@ -64,6 +64,16 @@ DLL_EXPORT i32 PolicyEvaluate(const i16* us, const i16* them, const i16* l1w) {
     i32 output = vec_hsum_8x32(sum);
     return output;
 }
+
+#define EXP_POL(N) \
+    DLL_EXPORT i32 PolicyEvaluate##N(const i16* us, const i16* them, const i16* l1w) { return PolicyEvaluateImpl<N>(us, them, l1w); }
+
+EXP_POL( 512)
+EXP_POL( 768)
+EXP_POL(1024)
+EXP_POL(1280)
+EXP_POL(1536)
+
 
 
 template<i32 L1_SIZE, i32 L2_SIZE, i32 L3_SIZE>
@@ -85,7 +95,6 @@ f32 ValueEvaluateImpl(const i16* us, const i16* them,
 
     alignas(32) vec_i32 L1Temp[L2_SIZE / I32_CHUNK_SIZE] = {};
     alignas(32) f32 L1Outputs[L2_SIZE];
-
     alignas(32) vec_ps L2Outputs[L3_SIZE / F32_CHUNK_SIZE];
 
     //  FT
@@ -195,14 +204,24 @@ f32 ValueEvaluateImpl(const i16* us, const i16* them,
 #define EXP_VAL_IMPL(N, O, P) \
     DLL_EXPORT f32 ValueEvaluate##N##_##O##_##P(const i16* us, const i16* them, const i8* l1w, const f32* l1b, const f32* l2w, const f32* l2b, const f32* l3w, const f32 l3b) { return ValueEvaluateImpl<N, O, P>(us, them, l1w, l1b, l2w, l2b, l3w, l3b); }
 
-EXP_VAL(  64, 64, 256)
-EXP_VAL( 128, 64, 256)
-EXP_VAL( 256, 64, 256)
-EXP_VAL( 512, 64, 256)
-EXP_VAL( 768, 64, 256)
-EXP_VAL(1024, 64, 256)
-EXP_VAL(1280, 64, 256)
-EXP_VAL(1536, 64, 256)
-EXP_VAL(1792, 64, 256)
-EXP_VAL(2048, 64, 256)
 
+EXP_VAL(1024,   32,   32) EXP_VAL(1024,   32,   64) EXP_VAL(1024,   32,  128) EXP_VAL(1024,   32,  256) EXP_VAL(1024,   32,  384) 
+EXP_VAL(1024,   64,   64) EXP_VAL(1024,   64,  128) EXP_VAL(1024,   64,  256) EXP_VAL(1024,   64,  384) 
+EXP_VAL(1024,   96,  128) EXP_VAL(1024,   96,  256) EXP_VAL(1024,   96,  384) 
+EXP_VAL(1024,  128,  128) EXP_VAL(1024,  128,  256) EXP_VAL(1024,  128,  384) 
+EXP_VAL(1280,   32,   32) EXP_VAL(1280,   32,   64) EXP_VAL(1280,   32,  128) EXP_VAL(1280,   32,  256) EXP_VAL(1280,   32,  384) EXP_VAL(1280,   32,  512) 
+EXP_VAL(1280,   64,   64) EXP_VAL(1280,   64,  128) EXP_VAL(1280,   64,  256) EXP_VAL(1280,   64,  384) EXP_VAL(1280,   64,  512) 
+EXP_VAL(1280,   96,  128) EXP_VAL(1280,   96,  256) EXP_VAL(1280,   96,  384) EXP_VAL(1280,   96,  512) 
+EXP_VAL(1280,  128,  128) EXP_VAL(1280,  128,  256) EXP_VAL(1280,  128,  384) EXP_VAL(1280,  128,  512) 
+EXP_VAL(1536,   32,   32) EXP_VAL(1536,   32,   64) EXP_VAL(1536,   32,  128) EXP_VAL(1536,   32,  256) EXP_VAL(1536,   32,  384) EXP_VAL(1536,   32,  512) 
+EXP_VAL(1536,   64,   64) EXP_VAL(1536,   64,  128) EXP_VAL(1536,   64,  256) EXP_VAL(1536,   64,  384) EXP_VAL(1536,   64,  512) 
+EXP_VAL(1536,   96,  128) EXP_VAL(1536,   96,  256) EXP_VAL(1536,   96,  384) EXP_VAL(1536,   96,  512) 
+EXP_VAL(1536,  128,  128) EXP_VAL(1536,  128,  256) EXP_VAL(1536,  128,  384) EXP_VAL(1536,  128,  512) 
+EXP_VAL(1792,   32,   32) EXP_VAL(1792,   32,   64) EXP_VAL(1792,   32,  128) EXP_VAL(1792,   32,  256) EXP_VAL(1792,   32,  384) EXP_VAL(1792,   32,  512) EXP_VAL(1792,   32,  768) 
+EXP_VAL(1792,   64,   64) EXP_VAL(1792,   64,  128) EXP_VAL(1792,   64,  256) EXP_VAL(1792,   64,  384) EXP_VAL(1792,   64,  512) EXP_VAL(1792,   64,  768) 
+EXP_VAL(1792,   96,  128) EXP_VAL(1792,   96,  256) EXP_VAL(1792,   96,  384) EXP_VAL(1792,   96,  512) EXP_VAL(1792,   96,  768) 
+EXP_VAL(1792,  128,  128) EXP_VAL(1792,  128,  256) EXP_VAL(1792,  128,  384) EXP_VAL(1792,  128,  512) EXP_VAL(1792,  128,  768) 
+EXP_VAL(2048,   32,   32) EXP_VAL(2048,   32,   64) EXP_VAL(2048,   32,  128) EXP_VAL(2048,   32,  256) EXP_VAL(2048,   32,  384) EXP_VAL(2048,   32,  512) EXP_VAL(2048,   32,  768) 
+EXP_VAL(2048,   64,   64) EXP_VAL(2048,   64,  128) EXP_VAL(2048,   64,  256) EXP_VAL(2048,   64,  384) EXP_VAL(2048,   64,  512) EXP_VAL(2048,   64,  768) 
+EXP_VAL(2048,   96,  128) EXP_VAL(2048,   96,  256) EXP_VAL(2048,   96,  384) EXP_VAL(2048,   96,  512) EXP_VAL(2048,   96,  768) 
+EXP_VAL(2048,  128,  128) EXP_VAL(2048,  128,  256) EXP_VAL(2048,  128,  384) EXP_VAL(2048,  128,  512) EXP_VAL(2048,  128,  768) 

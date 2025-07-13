@@ -31,8 +31,6 @@ namespace AwesomeOpossum.Logic.Util
             PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
             ValueEvaluateFn = (delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float>)(&ValueNetwork.EvaluateImpl);
 
-            return;
-
             if (!IsOSPlatform(OSPlatform.Windows) && !IsOSPlatform(OSPlatform.Linux))
                 return;
 
@@ -54,11 +52,12 @@ namespace AwesomeOpossum.Logic.Util
                 return;
             }
 
-            var policyFuncName = $"ValueEvaluate{ValueNetwork.L1_SIZE}_{ValueNetwork.L2_SIZE}_{ValueNetwork.L3_SIZE}";
+            var policyFuncName = $"PolicyEvaluate{PolicyNetwork.L1_SIZE}";
+            var valueFuncName = $"ValueEvaluate{ValueNetwork.L1_SIZE}_{ValueNetwork.L2_SIZE}_{ValueNetwork.L3_SIZE}";
             try
             {
-                PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, "PolicyEvaluate");
-                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, policyFuncName);
+                PolicyEvaluateAddr = NativeLibrary.GetExport(Handle, policyFuncName);
+                ValueEvaluateAddr = NativeLibrary.GetExport(Handle, valueFuncName);
 
                 var SetupNNZAddr = NativeLibrary.GetExport(Handle, "SetupNNZ");
                 ((delegate* unmanaged<void>)SetupNNZAddr)();

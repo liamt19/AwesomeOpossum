@@ -121,3 +121,14 @@ inline i32 vec_hsum_8x32(const vec_i32 v) {
 }
 
 #endif
+
+constexpr auto U8_CHUNK_SIZE = sizeof(vec_i8) / sizeof(u8);
+constexpr auto I16_CHUNK_SIZE = sizeof(vec_i16) / sizeof(i16);
+constexpr auto I32_CHUNK_SIZE = sizeof(vec_i32) / sizeof(i32);
+constexpr auto F32_CHUNK_SIZE = sizeof(vec_ps) / sizeof(f32);
+
+constexpr auto NNZ_INPUT_SIMD_WIDTH = sizeof(vec_i32) / sizeof(i32);
+constexpr auto NNZ_CHUNK_SIZE = (NNZ_INPUT_SIMD_WIDTH > 8) ? NNZ_INPUT_SIMD_WIDTH : 8;
+constexpr auto NNZ_OUTPUTS_PER_CHUNK = NNZ_CHUNK_SIZE / 8;
+
+constexpr auto L1_CHUNK_PER_32 = sizeof(i32) / sizeof(i8);

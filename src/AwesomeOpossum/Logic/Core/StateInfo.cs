@@ -22,13 +22,22 @@ namespace AwesomeOpossum.Logic.Core
         [FieldOffset( 80)] public fixed int KingSquares[2];
         [FieldOffset( 88)] public ulong Checkers = 0;
         [FieldOffset( 96)] public ulong Hash = 0;
-        [FieldOffset(104)] public ulong PawnHash = 0;
-        [FieldOffset(112)] public fixed ulong NonPawnHash[2];
-        [FieldOffset(128)] public int HalfmoveClock = 0;
-        [FieldOffset(132)] public int EPSquare = EPNone;
-        [FieldOffset(136)] public int CapturedPiece = None;
-        [FieldOffset(140)] public CastlingStatus CastleStatus = CastlingStatus.None;
+        [FieldOffset(104)] public int HalfmoveClock = 0;
+        [FieldOffset(108)] public int EPSquare = EPNone;
+        [FieldOffset(112)] public int CapturedPiece = None;
+        [FieldOffset(116)] public CastlingStatus CastleStatus = CastlingStatus.None;
 
         public StateInfo() { }
+
+        public static bool operator ==(in StateInfo l, in StateInfo r) => l.Equals(r);
+        public static bool operator !=(in StateInfo l, in StateInfo r) => !l.Equals(r);
+        public bool Equals(in StateInfo r)
+        {
+            return Checkers == r.Checkers 
+                && Hash == r.Hash
+                && EPSquare == r.EPSquare
+                && CapturedPiece == r.CapturedPiece
+                && CastleStatus == r.CastleStatus;
+        }
     }
 }

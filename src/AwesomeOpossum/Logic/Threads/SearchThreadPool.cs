@@ -105,10 +105,9 @@ namespace AwesomeOpossum.Logic.Threads
             ScoredMove* moves = stackalloc ScoredMove[MoveListSize];
             int size = rootPosition.GenLegal(moves);
 
-            var rootFEN = setup.StartFEN;
-            if (rootFEN == InitialFEN && setup.SetupMoves.Count == 0)
+            if (setup.StartFEN == InitialFEN && setup.SetupMoves.Count == 0)
             {
-                rootFEN = rootPosition.GetFEN();
+                setup.StartFEN = rootPosition.GetFEN();
             }
 
             for (int i = 0; i < ThreadCount; i++)
@@ -116,12 +115,7 @@ namespace AwesomeOpossum.Logic.Threads
                 var td = Threads[i];
 
                 td.Reset();
-                td.RootPosition.LoadFromFEN(rootFEN);
-
-                foreach (var move in setup.SetupMoves)
-                {
-                    td.RootPosition.MakeMove(move);
-                }
+                td.ThreadSetup.CloneFrom(setup);
             }
 
             TimeManager.StartTimer();

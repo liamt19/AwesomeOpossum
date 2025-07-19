@@ -15,5 +15,23 @@
             this.SetupMoves = setupMoves;
             this.UCISearchMoves = uciSearchMoves;
         }
+
+        public void Clear()
+        {
+            StartFEN = InitialFEN;
+            SetupMoves.Clear();
+            UCISearchMoves.Clear();
+        }
+
+        public void CloneFrom(ThreadSetup other)
+        {
+            StartFEN = other.StartFEN;
+
+            SetupMoves.Clear();
+            SetupMoves.AddRange(other.SetupMoves);
+
+            UCISearchMoves.Clear();
+            UCISearchMoves.AddRange(other.UCISearchMoves);
+        }
     }
 }

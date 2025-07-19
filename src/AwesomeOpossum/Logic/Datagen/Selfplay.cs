@@ -285,7 +285,7 @@ public static unsafe class Selfplay
         } 
 
         thread.SetStop(false);
-        thread.ClearTree();
+        thread.SetupTree();
 
         while (true)
         {

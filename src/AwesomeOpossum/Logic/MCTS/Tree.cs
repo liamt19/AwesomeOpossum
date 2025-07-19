@@ -11,6 +11,7 @@ public unsafe class Tree
 {
     public TranspositionTable TT;
 
+    public TreeRootState RootState;
     public Node* Nodes;
     private ulong TotalNodes;
 
@@ -41,6 +42,7 @@ public unsafe class Tree
 
     public Tree(int mb)
     {
+        RootState = default;
         Nodes = default;
         TotalNodes = 0;
         Filled[0] = Filled[1] = 0;
@@ -76,6 +78,14 @@ public unsafe class Tree
         Clear();
     }
 
+    public void ClearHalves()
+    {
+#if DATAGEN
+        ClearFast();
+#else
+        Clear();
+#endif
+    }
 
     public void Clear()
     {
@@ -141,6 +151,12 @@ public unsafe class Tree
         CopyNodeAcross(oldRoot, newRoot);
     }
 
+
+    public void CopyRootFrom(NodePointer src)
+    {
+        this[RootNodePointer].Clear();
+        CopyNodeAcross(src, RootNodePointer);
+    }
 
     private void CopyNodeAcross(NodePointer src, NodePointer dst)
     {
@@ -210,6 +226,7 @@ public unsafe class Tree
         bool b = Expand(pos, root, 1);
         Debug.Assert(b);
         this[root].Update(1.0f - Iteration.GetNodeValue(pos, root));
+        RootState = TreeRootState.FromPosition(pos);
     }
 
 
@@ -250,6 +267,118 @@ public unsafe class Tree
         thisNode.Gini = 1.0f - gini;
 
         return true;
+    }
+
+
+    public void ReuseNode(Position pos, NodePointer nodePtr, uint depth)
+    {
+        ref Node thisNode = ref this[nodePtr];
+        var children = ChildrenOf(nodePtr);
+        uint count = thisNode.NumChildren;
+
+        float* policies = stackalloc float[256];
+        float maxPolicy = float.MinValue;
+        PolicyNetwork.RefreshPolicyAccumulator(pos);
+
+        for (int i = 0; i < count; i++)
+        {
+            policies[i] = SearchUtils.PolicyForMove(pos, children[i].Move);
+            maxPolicy = MathF.Max(maxPolicy, policies[i]);
+        }
+
+        var pst = SearchUtils.GetTemperatureAdjustment((int)depth, this[nodePtr].QValue);
+
+        float total = 0.0f;
+        for (uint i = 0; i < count; i++)
+        {
+            policies[i] = float.Exp((policies[i] - maxPolicy) / pst);
+            total += policies[i];
+        }
+
+        float gini = 0.0f;
+        for (uint i = 0; i < count; i++)
+        {
+            var policy = (policies[i] / total);
+
+            this[thisNode.FirstChild + i].SetPolicyValue(policy);
+            gini += (policy * policy);
+        }
+
+        thisNode.Gini = 1.0f - gini;
+    }
+
+    public NodePointer FindSubtree(Position pos, in NodePointer start, in TreeRootState thisState, in TreeRootState otherState, uint depth)
+    {
+        Debug.WriteLine($"FindSubtree({pos.GetFEN()}, {thisState}, {otherState}, {depth})");
+        if (thisState == otherState) {
+            return start;
+        }
+
+        if (start.IsNull || depth == 0) {
+            return NodePointer.Null;
+        }
+
+        var first_child_ptr = this[start].FirstChild;
+
+        if (first_child_ptr.IsNull) {
+            return NodePointer.Null;
+        }
+
+        var numChildren = this[start].NumChildren;
+        for (uint action = 0; action < numChildren; action++) {
+
+            var child_ptr = first_child_ptr + action;
+            var child = this[child_ptr];
+
+            
+            pos.MakeMove(child.Move);
+            var childBoard = TreeRootState.FromPosition(pos);
+            Debug.Write($"{child.Move}\t");
+            var found = FindSubtree(pos, child_ptr, childBoard, otherState, depth - 1);
+            pos.UnmakeMove(child.Move);
+
+            if (!found.IsNull) {
+                return found;
+            }
+        }
+
+        return NodePointer.Null;
+    }
+
+    public void SetRootPosition(Position pos)
+    {
+        TreeRootState oldState = RootState;
+        RootState = TreeRootState.FromPosition(pos);
+
+        if (IsEmpty)
+            return;
+
+        bool found = false;
+        Debug.WriteLine("info string searching for subtree");
+        Debug.WriteLine($"!!!!!!!!!!!!!!!!!Hash {oldState} -> {RootState}");
+
+        var root = FindSubtree(pos, RootNodePointer, oldState, RootState, 2);
+        Debug.WriteLine($"!!!!!!!!!!!!!!!!!new root is {root}");
+
+        if (!root.IsNull && this[root].HasChildren) {
+            found = true;
+
+            var nl = pos.NumLegalMoves();
+            Debug.Assert(nl == this[root].NumChildren);
+
+            if (root != RootNodePointer) {
+                this[RootNodePointer].Clear();
+                CopyNodeAcross(root, RootNodePointer);
+            }
+
+            Debug.WriteLine("info string found subtree");
+        }
+
+        if (!found)
+        {
+            Debug.WriteLine("info string no subtree found");
+            this.ClearHalves();
+        }
     }
 
 
@@ -362,7 +491,7 @@ public unsafe class Tree
         }
         list.Add(move);
 
-        while ((mate || depth > 0) && this[idx].IsValid && this[idx].HasChildren)
+        while ((mate || depth > 0) && this[idx].IsValidParent)
         {
             (idx, move, q) = GetBestAction(idx);
             list.Add(move);

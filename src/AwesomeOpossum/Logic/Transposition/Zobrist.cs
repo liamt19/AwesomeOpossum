@@ -35,7 +35,7 @@ public static unsafe class Zobrist
         BlackHash = rand.NextUlong();
     }
 
-    public static ulong GetHash(Position position, ulong* pawnHash, ulong* nonPawnHash)
+    public static ulong GetHash(Position position)
     {
         ref Bitboard bb = ref position.bb;
 
@@ -53,11 +53,6 @@ public static unsafe class Zobrist
                 var pt = bb.GetPieceAtIndex(idx);
                 var psq = PSQIndex(pc, pt, idx);
                 hash ^= PSQHashes[psq];
-
-                if (pt == Pawn)
-                    *pawnHash ^= PSQHashes[psq];
-                else
-                    *nonPawnHash ^= PSQHashes[psq];
             }
         }
 

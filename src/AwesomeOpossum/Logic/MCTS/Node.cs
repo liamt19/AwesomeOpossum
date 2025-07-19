@@ -30,6 +30,7 @@ public struct Node
     public bool HasChildren => (NumChildren != 0);
     public bool IsExpanded => (IsTerminal || HasChildren);
     public bool IsValid => (this != default);
+    public bool IsValidParent => (IsValid && HasChildren);
 
     public readonly float QValue => (float)Q64;
     private readonly double Q64 => Visits == 0 ? 0.0f : ((SumQ / (double)Visits) / Quantization);
@@ -37,6 +38,9 @@ public struct Node
     public readonly float ExplorationValue => PolicyValue / (1 + Visits);
     public readonly float Impurity => float.Clamp(Gini, 0.0f, 1.0f);
 
+    public NodePointer LastChild => FirstChild + NumChildren;
+
+    public void SetPolicyValue(float p) { PolicyValue = p; }
 
     public void Set(Move m, float p)
     {

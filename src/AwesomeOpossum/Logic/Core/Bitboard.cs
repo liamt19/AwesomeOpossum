@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using AwesomeOpossum.Logic.Data;
+using AwesomeOpossum.Logic.MCTS;
+using System.Runtime.CompilerServices;
 
 namespace AwesomeOpossum.Logic.Core
 {
@@ -240,6 +242,20 @@ namespace AwesomeOpossum.Logic.Core
                 mask |= AttackMask(poplsb(&pieces), pc, pt, Occupancy);
 
             return mask;
+        }
+
+
+        public static bool operator ==(in Bitboard l, in Bitboard r) => l.Equals(r);
+        public static bool operator !=(in Bitboard l, in Bitboard r) => !l.Equals(r);
+        public bool Equals(in Bitboard r)
+        {
+            for (int i = 0; i < PieceNB; i++)
+                if (Pieces[i] != r.Pieces[i]) return false;
+
+            for (int i = 0; i < ColorNB; i++)
+                if (Colors[i] != r.Colors[i]) return false;
+
+            return true;
         }
 
     }

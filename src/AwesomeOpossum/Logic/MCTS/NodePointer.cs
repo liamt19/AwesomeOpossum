@@ -17,7 +17,10 @@ public struct NodePointer
         Value = (half << 31) | index;
     }
 
+    public bool IsNull => this == Null;
+
     public static NodePointer operator +(NodePointer l, uint r) => new NodePointer(l.Half, l.Index + r);
+    public static NodePointer operator +(NodePointer l, int r) => new NodePointer(l.Half, l.Index + (uint)r);
 
     public static bool operator ==(in NodePointer l, in NodePointer r) => l.Equals(r);
     public static bool operator !=(in NodePointer l, in NodePointer r) => !l.Equals(r);

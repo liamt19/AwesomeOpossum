@@ -35,6 +35,7 @@ namespace AwesomeOpossum.Logic.Threads
 
         public SearchThreadPool AssocPool;
         public Tree Tree;
+        public ThreadSetup ThreadSetup;
 
         private Thread _SysThread;
         private readonly object _Mutex;
@@ -59,6 +60,7 @@ namespace AwesomeOpossum.Logic.Threads
 
             //  Each thread its own position object, which lasts the entire lifetime of the thread.
             RootPosition = new Position(InitialFEN, true, this);
+            ThreadSetup = new ThreadSetup();
 
             _SysThread = new Thread(ThreadInit);
 
@@ -226,22 +228,103 @@ namespace AwesomeOpossum.Logic.Threads
         {
             Nodes = PlayoutIteration = 0;
             SelDepth = AverageDepth = 0;
+
+            ThreadSetup.Clear();
         }
 
-        public void ClearTree()
+        public void SetupTree()
         {
-#if DATAGEN
-            Tree.ClearFast();
-#else
-            Tree.Clear();
-#endif
-            Tree.PushRoot(RootPosition);
+            if (Tree.IsEmpty)
+            {
+                RootPosition.LoadFromFEN(ThreadSetup.StartFEN);
+                foreach (var move in ThreadSetup.SetupMoves)
+                    RootPosition.MakeMove(move);
+
+                Tree.PushRoot(RootPosition);
+
+                return;
+            }
+
+            Debug.WriteLine("info string searching for subtree");
+
+            Debug.Assert(Tree.RootNode.HasChildren);
+
+            TreeRootState currState = Tree.RootState;
+            RootPosition.LoadFromFEN(ThreadSetup.StartFEN);
+
+            bool found = (currState == RootPosition);
+            var thisNodePtr = Tree.RootNodePointer;
+
+            foreach (var move in ThreadSetup.SetupMoves)
+            {
+                RootPosition.MakeMove(move);
+                
+                if (!found) 
+                    continue;
+
+                found = false;
+
+                Node thisNode = Tree[thisNodePtr];
+
+                if (!thisNode.IsValidParent)
+                    continue;
+
+                var children = Tree.ChildrenOf(thisNodePtr);
+
+                for (int i = 0; i < thisNode.NumChildren; i++)
+                {
+                    if (children[i].IsValid && children[i].Move == move)
+                    {
+                        found = true;
+                        thisNodePtr = thisNode.FirstChild + i;
+                        break;
+                    }
+                }
+            }
+
+            if (found && !Tree[thisNodePtr].HasChildren)
+                found = false;
+
+            Debug.WriteLine("info string " + (found ? "found subtree" : "no subtree found"));
+
+            if (!found)
+            {
+                Tree.ClearHalves();
+                Tree.PushRoot(RootPosition);
+            }
+            else
+            {
+                if (thisNodePtr != Tree.RootNodePointer)
+                    Tree.CopyRootFrom(thisNodePtr);
+
+                Tree.RootState = TreeRootState.FromPosition(RootPosition);
+
+                Tree.ReuseNode(RootPosition, Tree.RootNodePointer, 1);
+
+                Debug.Assert(Tree.RootNode.NumChildren == RootPosition.NumLegalMoves(),
+                    $"root.NumChildren {Tree.RootNode.NumChildren} != NumLegalMoves {RootPosition.NumLegalMoves()}");
+
+                var root = Tree.RootNode;
+                var rootChildren = Tree.ChildrenOf(Tree.RootNodePointer);
+
+                for (int i = 0; i < root.NumChildren; i++)
+                {
+                    if (!rootChildren[i].IsValidParent)
+                        continue;
+
+                    var move = rootChildren[i].Move;
+                    RootPosition.MakeMove(move);
+                    Tree.ReuseNode(RootPosition, root.FirstChild + i, 2);
+                    RootPosition.UnmakeMove(move);
+                }
+            }
+
         }
 
 
         public void Playout(ref SearchInformation _info)
         {
-            ClearTree();
+            SetupTree();
 
             PlayoutIteration = 0;
 
@@ -272,7 +355,7 @@ namespace AwesomeOpossum.Logic.Threads
                     SetStop(true);
                     continue;
 #endif
-
+                    Debug.WriteLine("SwitchHalves");
                     //  Tree is full -> Switch halves + continue
                     Tree.SwitchHalves();
                     continue;

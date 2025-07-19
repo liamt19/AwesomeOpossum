@@ -39,9 +39,8 @@ namespace AwesomeOpossum.Logic.Core
         public bool InDoubleCheck => popcount(State->Checkers) == 2;
         public bool Checked => State->Checkers != 0;
 
+        public CastlingStatus CastleStatus => State->CastleStatus;
         public ulong Hash => State->Hash;
-        public ulong PawnHash => State->PawnHash;
-        public ulong NonPawnHash(int pc) => State->NonPawnHash[pc];
         public int CapturedPiece => State->CapturedPiece;
         public int KingSquare(int pc) => State->KingSquares[pc];
 
@@ -340,15 +339,6 @@ namespace AwesomeOpossum.Logic.Core
         private void UpdateHash(int pc, int pt, int sq)
         {
             State->Hash.ZobristToggleSquare(pc, pt, sq);
-
-            if (pt == Pawn)
-            {
-                State->PawnHash.ZobristToggleSquare(pc, pt, sq);
-            }
-            else
-            {
-                State->NonPawnHash[pc].ZobristToggleSquare(pc, pt, sq);
-            }
         }
 
 
@@ -457,10 +447,7 @@ namespace AwesomeOpossum.Logic.Core
 
             SetCheckInfo();
 
-            State->PawnHash = 0;
-            State->NonPawnHash[White] = State->NonPawnHash[Black] = 0;
-            State->Hash = Zobrist.GetHash(this, &State->PawnHash, &State->NonPawnHash[White]);
-            State->NonPawnHash[Black] = State->NonPawnHash[White];
+            State->Hash = Zobrist.GetHash(this);
         }
 
 
@@ -745,12 +732,14 @@ namespace AwesomeOpossum.Logic.Core
 
 
         [MethodImpl(Inline)]
-        public bool HasLegalMoves()
+        public int NumLegalMoves()
         {
             ScoredMove* list = stackalloc ScoredMove[MoveListSize];
-            int size = GenLegal(list);
-            return size != 0;
+            return GenLegal(list);
         }
+
+        [MethodImpl(Inline)]
+        public bool HasLegalMoves() => NumLegalMoves() != 0;
 
 
         /// <summary>

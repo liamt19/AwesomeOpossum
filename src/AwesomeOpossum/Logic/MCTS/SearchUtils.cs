@@ -17,7 +17,7 @@ public static unsafe class SearchUtils
     {
         var cpu = isRootNode ? CPuctBaseRoot : CPuctBase;
         
-        cpu *= 1 + float.Log10((node.Visits + CPuctVisitScale) / CPuctVisitScale);
+        cpu *= 1 + float.Log((node.Visits + CPuctVisitScale) / CPuctVisitScale);
 
         return cpu;
     }

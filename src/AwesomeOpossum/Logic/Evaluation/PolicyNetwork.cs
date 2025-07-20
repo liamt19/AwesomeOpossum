@@ -26,13 +26,13 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         public const int INPUT_BUCKETS = 1;
         public const int INPUT_SIZE = 768;
-        public const int L1_SIZE = 512;
+        public const int L1_SIZE = 1024;
         public const int OUTPUT_SIZE = 1880;
         public const int OUTPUT_BUCKETS = 2;
 
         public const int SEE_THRESHOLD = -105;
 
-        public const int QA = 255;
+        public const int QA = 256;
         public const int QB = 64;
         public static readonly int CHUNK = Vector256<short>.Count;
 

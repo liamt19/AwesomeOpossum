@@ -15,7 +15,7 @@ namespace AwesomeOpossum.Logic.Util
         private static readonly IntPtr PolicyEvaluateAddr;
         private static readonly IntPtr ValueEvaluateAddr;
 
-        public static unsafe delegate* unmanaged<short*, short*, short*, int> PolicyEvaluateFn;
+        public static unsafe delegate* unmanaged<short*, short*, int> PolicyEvaluateFn;
         public static unsafe delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float> ValueEvaluateFn;
 
 #if IsWindows
@@ -28,7 +28,7 @@ namespace AwesomeOpossum.Logic.Util
         {
             HasBindings = false;
 
-            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
+            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
             ValueEvaluateFn = (delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float>)(&ValueNetwork.EvaluateImpl);
 
             return; //  TODO: fix(?) float inference
@@ -70,7 +70,7 @@ namespace AwesomeOpossum.Logic.Util
                 return;
             }
 
-            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, short*, int>)PolicyEvaluateAddr;
+            PolicyEvaluateFn = (delegate* unmanaged<short*, short*, int>)PolicyEvaluateAddr;
             ValueEvaluateFn = (delegate* unmanaged<short*, short*, sbyte*, float*, float*, float*, float*, float, float>)ValueEvaluateAddr;
 
             HasBindings = true;

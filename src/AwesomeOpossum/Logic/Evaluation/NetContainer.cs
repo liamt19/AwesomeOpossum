@@ -56,18 +56,38 @@ public readonly unsafe struct ValueNetContainer<T, W, U>
     }
 }
 
-public readonly unsafe struct PolicyNetContainer<T, W>
+public readonly unsafe struct PolicyNetContainer<T, W, U>
 {
     public readonly T* FTWeights;
     public readonly T* FTBiases;
     public readonly W* L1Weights;
-    public readonly W* L1Biases;
+    public readonly U* L1Biases;
 
     public PolicyNetContainer()
     {
         FTWeights = (T*)AlignedAllocZeroed((nuint)sizeof(T) * PolicyNetwork.N_FTW);
         FTBiases  = (T*)AlignedAllocZeroed((nuint)sizeof(T) * PolicyNetwork.N_FTB);
         L1Weights = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1W);
-        L1Biases  = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1B);
+        L1Biases  = (U*)AlignedAllocZeroed((nuint)sizeof(U) * PolicyNetwork.N_L1B);
+    }
+
+    public void TransposeL1W()
+    {
+        var rowLen = PolicyNetwork.L1_PAIRS;
+        var colLen = PolicyNetwork.N_L1W / rowLen;
+        var temp = new W[PolicyNetwork.N_L1W];
+
+        fixed (W* p = temp)
+            Unsafe.CopyBlock(p, L1Weights, (uint)(sizeof(W) * PolicyNetwork.N_L1W));
+
+        for (int r = 0; r < rowLen; r++)
+        {
+            W* slice = L1Weights + (r * colLen);
+
+            for (int c = 0; c < colLen; c++)
+            {
+                slice[c] = temp[(rowLen * c) + r];
+            }
+        }
     }
 }

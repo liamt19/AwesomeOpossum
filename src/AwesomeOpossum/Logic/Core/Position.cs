@@ -34,6 +34,7 @@ namespace AwesomeOpossum.Logic.Core
 
         private const int StateStackSize = 2048;
 
+        public short* PolicyAccumulation => PolicyAccumulator.Accumulation;
         public StateInfo* NextState => (State + 1);
         public bool InCheck => popcount(State->Checkers) == 1;
         public bool InDoubleCheck => popcount(State->Checkers) == 2;

@@ -70,4 +70,24 @@ public readonly unsafe struct PolicyNetContainer<T, W>
         L1Weights = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1W);
         L1Biases  = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1B);
     }
+
+    public void TransposeL1W()
+    {
+        var rowLen = PolicyNetwork.L1_PAIRS;
+        var colLen = PolicyNetwork.N_L1W / rowLen;
+        var temp = new W[PolicyNetwork.N_L1W];
+
+        fixed (W* p = temp)
+            Unsafe.CopyBlock(p, L1Weights, (uint)(sizeof(W) * PolicyNetwork.N_L1W));
+
+        for (int r = 0; r < rowLen; r++)
+        {
+            W* slice = L1Weights + (r * colLen);
+
+            for (int c = 0; c < colLen; c++)
+            {
+                slice[c] = temp[(rowLen * c) + r];
+            }
+        }
+    }
 }

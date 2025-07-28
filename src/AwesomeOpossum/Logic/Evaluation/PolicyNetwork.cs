@@ -35,11 +35,14 @@ namespace AwesomeOpossum.Logic.Evaluation
         public const int QA = 256;
         public const int QB = 64;
         public static readonly int CHUNK = Vector256<short>.Count;
+        public static readonly int L1_CHUNKS = L1_SIZE / CHUNK;
+
+        public const int L1_PAIRS = L1_SIZE / 2;
 
         public const int N_FTW = INPUT_SIZE * L1_SIZE * INPUT_BUCKETS;
         public const int N_FTB = L1_SIZE;
 
-        public const int N_L1W = L1_SIZE * OUTPUT_BUCKETS * OUTPUT_SIZE;
+        public const int N_L1W = L1_PAIRS * OUTPUT_BUCKETS * OUTPUT_SIZE;
         public const int N_L1B = OUTPUT_BUCKETS * OUTPUT_SIZE;
 
         private static readonly PolicyNetContainer<short, short> Net;
@@ -102,38 +105,41 @@ namespace AwesomeOpossum.Logic.Evaluation
         public static void RefreshPolicyAccumulator(Position pos)
         {
             ref Bitboard bb = ref pos.bb;
+            var stm = pos.ToMove;
+            var ntm = Not(stm);
 
-            var wAccumulation = (short*)pos.PolicyAccumulator[White];
-            var bAccumulation = (short*)pos.PolicyAccumulator[Black];
-            Unsafe.CopyBlock(wAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
-            Unsafe.CopyBlock(bAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
+            var vert = (stm == Black) ? 56 : 0;
+            var hori = (pos.KingSquare(stm) % 8 > 3) ? 7 : 0;
+            var flip = vert ^ hori;
 
-            ulong occ = bb.Occupancy;
-            while (occ != 0)
+            var accumulation = pos.PolicyAccumulation;
+            Unsafe.CopyBlock(accumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
+
+            for (int pt = Pawn; pt <= King; pt++)
             {
-                int pieceIdx = poplsb(&occ);
-                int pc = bb.GetColorAtIndex(pieceIdx);
-                int pt = bb.GetPieceAtIndex(pieceIdx);
+                ulong boys = bb.Pieces[pt] & bb.Colors[stm];
+                ulong opps = bb.Pieces[pt] & bb.Colors[ntm];
 
-                var wIdx = FeatureIndex(pc, pt, pieceIdx, White);
-                var bIdx = FeatureIndex(pc, pt, pieceIdx, Black);
+                while (boys != 0)
+                {
+                    int sq = poplsb(&boys);
+                    var idx = (64 * pt) + (sq ^ flip);
+                    PolicyUnrollThings.Add(accumulation, accumulation, &Net.FTWeights[idx * L1_SIZE]);
+                }
 
-                PolicyUnrollThings.Add(wAccumulation, wAccumulation, &Net.FTWeights[wIdx]);
-                PolicyUnrollThings.Add(bAccumulation, bAccumulation, &Net.FTWeights[bIdx]);
+                while (opps != 0)
+                {
+                    int sq = poplsb(&opps);
+                    var idx = 384 + (64 * pt) + (sq ^ flip);
+                    PolicyUnrollThings.Add(accumulation, accumulation, &Net.FTWeights[idx * L1_SIZE]);
+                }
             }
 
-            int N = Vector256<short>.Count;
-            int SimdChunks = L1_SIZE / N;
-
-            var zero = Vector256<short>.Zero;
             var one = Vector256.Create((short)QA);
-
-            var wVecs = (Vector256<short>*)wAccumulation;
-            var bVecs = (Vector256<short>*)bAccumulation;
-            for (int i = 0; i < SimdChunks; i++)
+            var vecs = (Vector256<short>*)accumulation;
+            for (int i = 0; i < L1_CHUNKS; i++)
             {
-                wVecs[i] = Vector256.Min(Vector256.Max(wVecs[i], zero), one);
-                bVecs[i] = Vector256.Min(Vector256.Max(bVecs[i], zero), one);
+                vecs[i] = Vector256.Min(Vector256.Max(vecs[i], Vector256<short>.Zero), one);
             }
         }
 
@@ -185,12 +191,11 @@ namespace AwesomeOpossum.Logic.Evaluation
         {
             int moveIndex = MoveIndex(pos, m);
 
-            var stmData = (short*)pos.PolicyAccumulator[pos.ToMove];
-            var ntmData = (short*)pos.PolicyAccumulator[Not(pos.ToMove)];
-            var l1Weights = &Net.L1Weights[moveIndex * L1_SIZE];
+            var data = pos.PolicyAccumulation;
+            var l1Weights = &Net.L1Weights[moveIndex * L1_PAIRS];
             var l1Biases = &Net.L1Biases[moveIndex];
 
-            int output = SIMDBindings.PolicyEvaluateFn(stmData, ntmData, l1Weights);
+            int output = SIMDBindings.PolicyEvaluateFn(data, l1Weights);
 
             var rv = (((float)output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
             return rv;
@@ -198,32 +203,21 @@ namespace AwesomeOpossum.Logic.Evaluation
 
 
         [UnmanagedCallersOnly]
-        public static int EvaluateImpl(short* stmData, short* ntmData, short* l1Weights)
+        public static int EvaluateImpl(short* data, short* l1Weights)
         {
             var sum = Vector256<int>.Zero;
 
-            int Stride = (L1_SIZE / Vector256<short>.Count) / 2;
+            int Stride = L1_CHUNKS / 2;
 
-            var data0 = (Vector256<short>*)stmData;
-            var data1 = &data0[Stride];
+            var data0 = (Vector256<short>*)&data[0];
+            var data1 = (Vector256<short>*)&data[L1_SIZE / 2];
             var weights = (Vector256<short>*)l1Weights;
             for (int i = 0; i < Stride; i++)
             {
-                (var mLo, var mHi) = Vector256.Widen(data0[i] * weights[i]);
-                (var cLo, var cHi) = Vector256.Widen(data1[i]);
+                var mullo = Vector256.Multiply(data0[i], weights[i]);
+                var madd = Aliases.MultiplyAddAdjacentEpi16(mullo, data1[i]);
 
-                sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
-            }
-
-            data0 = (Vector256<short>*)ntmData;
-            data1 = &data0[Stride];
-            weights = (Vector256<short>*)(&l1Weights[L1_SIZE / 2]);
-            for (int i = 0; i < Stride; i++)
-            {
-                (var mLo, var mHi) = Vector256.Widen(data0[i] * weights[i]);
-                (var cLo, var cHi) = Vector256.Widen(data1[i]);
-
-                sum = Vector256.Add(sum, Vector256.Add(mLo * cLo, mHi * cHi));
+                sum = Vector256.Add(sum, madd);
             }
 
             return Vector256.Sum(sum);

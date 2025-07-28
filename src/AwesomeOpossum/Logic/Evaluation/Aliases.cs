@@ -243,6 +243,18 @@ namespace AwesomeOpossum.Logic.Evaluation
         {
             return Vector128.Sum(sum);
         }
+
+        public static Vector256<int> MultiplyAddAdjacentEpi16(Vector256<short> a, Vector256<short> b)
+        {
+            if (Avx2.IsSupported)
+            {
+                return Avx2.MultiplyAddAdjacent(a, b);
+            }
+
+            (var aLo, var aHi) = Vector256.Widen(a);
+            (var bLo, var bHi) = Vector256.Widen(b);
+            return Vector256.Add(aLo * bLo, aHi * bHi);
+        }
     }
 
 }

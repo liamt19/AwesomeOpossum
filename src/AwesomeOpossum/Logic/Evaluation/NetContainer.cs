@@ -56,19 +56,19 @@ public readonly unsafe struct ValueNetContainer<T, W, U>
     }
 }
 
-public readonly unsafe struct PolicyNetContainer<T, W, U>
+public readonly unsafe struct PolicyNetContainer<T, W>
 {
     public readonly T* FTWeights;
     public readonly T* FTBiases;
     public readonly W* L1Weights;
-    public readonly U* L1Biases;
+    public readonly W* L1Biases;
 
     public PolicyNetContainer()
     {
         FTWeights = (T*)AlignedAllocZeroed((nuint)sizeof(T) * PolicyNetwork.N_FTW);
         FTBiases  = (T*)AlignedAllocZeroed((nuint)sizeof(T) * PolicyNetwork.N_FTB);
         L1Weights = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1W);
-        L1Biases  = (U*)AlignedAllocZeroed((nuint)sizeof(U) * PolicyNetwork.N_L1B);
+        L1Biases  = (W*)AlignedAllocZeroed((nuint)sizeof(W) * PolicyNetwork.N_L1B);
     }
 
     public void TransposeL1W()

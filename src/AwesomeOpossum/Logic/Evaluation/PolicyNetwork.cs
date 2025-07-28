@@ -45,8 +45,8 @@ namespace AwesomeOpossum.Logic.Evaluation
         public const int N_L1W = L1_PAIRS * OUTPUT_BUCKETS * OUTPUT_SIZE;
         public const int N_L1B = OUTPUT_BUCKETS * OUTPUT_SIZE;
 
-        private static readonly PolicyNetContainer<short, short, float> Net;
-        private static long ExpectedNetworkSize => (N_FTW + N_FTB + N_L1W) * sizeof(short) + (N_L1B) * sizeof(float);
+        private static readonly PolicyNetContainer<short, short> Net;
+        private static long ExpectedNetworkSize => (N_FTW + N_FTB + N_L1W + N_L1B) * sizeof(short);
 
         static PolicyNetwork()
         {
@@ -98,7 +98,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                 Net.L1Weights[i] = br.ReadInt16();
 
             for (int i = 0; i < N_L1B; i++)
-                Net.L1Biases[i] = br.ReadSingle();
+                Net.L1Biases[i] = br.ReadInt16();
         }
 
 

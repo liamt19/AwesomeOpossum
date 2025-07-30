@@ -12,15 +12,15 @@ public static class DatagenParameters
 {
     public const int HashSize = 8;
 
-    public const int RandomPlies = 6;
+    public const int RandomPlies = 4;
 
     public const int SoftNodeLimit = 10000;
     public const int DepthLimit = 14;
 
     public const bool DFRC = true;
 
-    public const bool UseBook = false;
-    public const string BookPath = "DFRC_4852_v1.epd";
+    public const bool UseBook = true;
+    public const string BookPath = "DFRC_4852_v1.epd.fixed";
 }
 
 public static unsafe class Selfplay
@@ -121,6 +121,7 @@ public static unsafe class Selfplay
             pack.Clear();
             GetStartPos(thread, threadID);
             pack.startpos = MontyPosition.FromPosition(pos);
+            pack.rights = MontyCastling.FromPosition(pos);
 
             int moveNum = 0;
             NodeStateKind playoutState = NodeStateKind.Unterminated;

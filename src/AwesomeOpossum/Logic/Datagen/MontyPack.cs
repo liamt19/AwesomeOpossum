@@ -27,10 +27,10 @@ public unsafe struct MontyCastling
 
         m.chess960 = pos.IsChess960;
 
-        m.rook_files[0] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.WK));
-        m.rook_files[1] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.WQ));
-        m.rook_files[2] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.BK));
-        m.rook_files[3] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.BQ));
+        m.rook_files[0] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.WQ));
+        m.rook_files[1] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.WK));
+        m.rook_files[2] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.BQ));
+        m.rook_files[3] = (byte)GetIndexFile(pos.CastlingRookSquare(CastlingStatus.BK));
 
         new Span<byte>(m.castle_mask, 64).Fill(15);
         m.castle_mask[m.rook_files[0]] = 7;

@@ -671,6 +671,16 @@ namespace AwesomeOpossum.Logic.Core
                         return false;
                     }
 
+                    var theirKingAttacks = NeighborsMask[theirKing];
+                    if ((CastlingRookPaths[(int)thisCr] & theirKingAttacks) != 0)
+                    {
+                        //  Edge case: bb.AttackersTo excludes king attacks, which I tried to account for with:
+                        //  | (NeighborsMask[kingTo] & SquareBB[theirKing])
+                        //  This works in standard chess, but not in FRC where their king can attack the intermediate squares
+                        //  while also not attacking the destination. See -> 8/8/8/8/8/8/4k3/1R4KR w B - 1 28
+                        return false;
+                    }
+                    
                     int kingTo = (moveTo > moveFrom ? G1 : C1) ^ (ourColor * 56);
                     ulong them = bb.Colors[theirColor];
                     int dir = (moveFrom < kingTo) ? -1 : 1;

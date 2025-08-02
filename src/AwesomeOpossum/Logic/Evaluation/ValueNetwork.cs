@@ -9,7 +9,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using static AwesomeOpossum.Logic.Evaluation.Aliases;
-using static AwesomeOpossum.Logic.Evaluation.FunUnrollThings;
 
 namespace AwesomeOpossum.Logic.Evaluation
 {
@@ -42,7 +41,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private const int N_FTW = INPUT_SIZE * L1_SIZE * INPUT_BUCKETS;
         private const int N_FTB = L1_SIZE;
-        private const int N_L1W = OUTPUT_BUCKETS * L1_SIZE * L2_SIZE;
+        private const int N_L1W = OUTPUT_BUCKETS * L1_PAIRS * L2_SIZE;
         private const int N_L1B = OUTPUT_BUCKETS * L2_SIZE;
         private const int N_L2W = OUTPUT_BUCKETS * L2_SIZE * L3_SIZE;
         private const int N_L2B = OUTPUT_BUCKETS * L3_SIZE;
@@ -56,8 +55,8 @@ namespace AwesomeOpossum.Logic.Evaluation
                                                            (N_L1W) * sizeof(byte) +
                            (N_L1B + N_L2W + N_L2B + N_L3W + N_L3B) * sizeof(float);
 
-        private const int L1_CHUNK_PER_32 = sizeof(int) / sizeof(sbyte);
-        private const int L1_PAIR_COUNT = L1_SIZE / 2;
+        public const int L1_PAIRS = L1_SIZE / 2;
+
         private const int I16_CHUNK_SIZE = 32 / sizeof(short);
         private const int I32_CHUNK_SIZE = 32 / sizeof(int);
         private const int F32_CHUNK_SIZE = 32 / sizeof(float);
@@ -144,7 +143,7 @@ namespace AwesomeOpossum.Logic.Evaluation
             for (int i = 0; i < N_L3B; i++)
                 Net.L3Biases[i] = br.ReadSingle();
 
-            sbyte[,,] tempL1 = new sbyte[OUTPUT_BUCKETS, L2_SIZE, L1_SIZE];
+            sbyte[,,] tempL1 = new sbyte[OUTPUT_BUCKETS, L2_SIZE, L1_PAIRS];
             float[,,] tempL2 = new float[OUTPUT_BUCKETS, L3_SIZE, L2_SIZE];
 
             fixed (sbyte* tl1 = tempL1)
@@ -158,7 +157,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             for (int bucket = 0; bucket < OUTPUT_BUCKETS; bucket++)
             {
-                for (int i = 0; i < L1_SIZE; i += 4)
+                for (int i = 0; i < L1_PAIRS; i += 4)
                     for (int j = 0; j < L2_SIZE; ++j)
                         for (int k = 0; k < 4; ++k)
                             Net.L1Weights[bucket][i * L2_SIZE
@@ -173,31 +172,39 @@ namespace AwesomeOpossum.Logic.Evaluation
             PermuteDpbusd();
         }
 
+
         public static void RefreshAccumulator(Position pos)
         {
-            RefreshPerspective(pos, White);
-            RefreshPerspective(pos, Black);
-        }
-
-        private static void RefreshPerspective(Position pos, int perspective)
-        {
-            ref Accumulator accumulator = ref pos.ValueAccumulator;
             ref Bitboard bb = ref pos.bb;
+            var stm = pos.ToMove;
+            var ntm = Not(stm);
 
-            var ourAccumulation = (short*)accumulator[perspective];
-            Unsafe.CopyBlock(ourAccumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
+            var vert = (stm == Black) ? 56 : 0;
+            var hori = (pos.KingSquare(stm) % 8 > 3) ? 7 : 0;
+            var flip = vert ^ hori;
 
-            int ourKing = pos.State->KingSquares[perspective];
-            ulong occ = bb.Occupancy;
-            while (occ != 0)
+            var accumulation = pos.ValueAccumulation;
+            Unsafe.CopyBlock(accumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
+
+            for (int pt = Pawn; pt <= King; pt++)
             {
-                int pieceIdx = poplsb(&occ);
+                ulong boys = bb.Pieces[pt] & bb.Colors[stm];
+                ulong opps = bb.Pieces[pt] & bb.Colors[ntm];
 
-                int pt = bb.GetPieceAtIndex(pieceIdx);
-                int pc = bb.GetColorAtIndex(pieceIdx);
+                while (boys != 0)
+                {
+                    int sq = poplsb(&boys);
+                    var idx = (64 * pt) + (sq ^ flip);
+                    ValueUnrollThings.Add(accumulation, accumulation, &Net.FTWeights[idx * L1_SIZE]);
+                }
 
-                int idx = FeatureIndexSingle(pc, pt, pieceIdx, ourKing, perspective);
-                UnrollAdd(ourAccumulation, ourAccumulation, Net.FTWeights + idx);
+                while (opps != 0)
+                {
+                    int sq = poplsb(&opps);
+                    var idx = 384 + (64 * pt) + (sq ^ flip);
+                    ValueUnrollThings.Add(accumulation, accumulation, &Net.FTWeights[idx * L1_SIZE]);
+                }
+
             }
         }
 
@@ -205,11 +212,9 @@ namespace AwesomeOpossum.Logic.Evaluation
         public static int Evaluate(Position pos) => Evaluate(pos, ((int)popcount(pos.bb.Occupancy) - 2) / BUCKET_DIV);
         public static int Evaluate(Position pos, int outputBucket)
         {
-            ref Accumulator accumulator = ref pos.ValueAccumulator;
             RefreshAccumulator(pos);
 
-            var us = (short*)accumulator[pos.ToMove];
-            var them = (short*)accumulator[Not(pos.ToMove)];
+            var data = pos.ValueAccumulation;
             var l1w = Net.L1Weights[outputBucket];
             var l1b = Net.L1Biases[outputBucket];
             var l2w = Net.L2Weights[outputBucket];
@@ -217,21 +222,21 @@ namespace AwesomeOpossum.Logic.Evaluation
             var l3w = Net.L3Weights[outputBucket];
             var l3b = Net.L3Biases[outputBucket];
 
-            float output = SIMDBindings.ValueEvaluateFn(us, them, l1w, l1b, l2w, l2b, l3w, l3b);
+            float output = SIMDBindings.ValueEvaluateFn(data, l1w, l1b, l2w, l2b, l3w, l3b);
 
             return int.Clamp((int)output, ScoreTTLoss + 1, ScoreTTWin - 1);
         }
 
 
         [UnmanagedCallersOnly]
-        public static float EvaluateImpl(short* us, short* them, sbyte* L1Weights, float* L1Biases,
+        public static float EvaluateImpl(short* data, sbyte* L1Weights, float* L1Biases,
             float* L2Weights, float* L2Biases, float* L3Weights, float L3Bias)
         {
             float L3Output = 0;
             float* L1Outputs = stackalloc float[L2_SIZE];
             float* L2Outputs = stackalloc float[L3_SIZE];
 
-            ActivateFTSparse(us, them, L1Weights, L1Biases, L1Outputs);
+            ActivateFTSparse(data, L1Weights, L1Biases, L1Outputs);
             ActivateL2(L1Outputs, L2Weights, L2Biases, L2Outputs);
             ActivateL3(L2Outputs, L3Weights, L3Bias, ref L3Output);
 
@@ -239,65 +244,60 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
-        private static void ActivateFTSparse(short* us, short* them, sbyte* weights, float* biases, float* output)
+        private static void ActivateFTSparse(short* data, sbyte* weights, float* biases, float* output)
         {
             var ft_zero = _mm256_setzero_epi16();
             var ft_one = _mm256_set1_epi16(FT_QUANT);
 
             int nnzCount = 0;
-            int offset = 0;
 
-            sbyte* ft_outputs = stackalloc sbyte[L1_SIZE];
-            ushort* nnzIndices = stackalloc ushort[L1_SIZE / L1_CHUNK_PER_32];
+            sbyte* ft_outputs = stackalloc sbyte[L1_PAIRS];
+            ushort* nnzIndices = stackalloc ushort[L1_PAIRS / 4];
 
             Vector128<ushort> baseInc = Vector128.Create((ushort)8);
             Vector128<ushort> baseVec = Vector128<ushort>.Zero;
 
-            for (int perspective = 0; perspective < 2; perspective++)
+            var ftPair0 = data;
+            var ftPair1 = &data[L1_PAIRS];
+
+            for (int i = 0; i < L1_PAIRS; i += (I16_CHUNK_SIZE * 2))
             {
-                short* acc = perspective == 0 ? us : them;
+                var input0a = _mm256_load_si256(&ftPair0[i + 0 * I16_CHUNK_SIZE]);
+                var input0b = _mm256_load_si256(&ftPair0[i + 1 * I16_CHUNK_SIZE]);
 
-                for (int i = 0; i < L1_PAIR_COUNT; i += (I16_CHUNK_SIZE * 2))
+                var input1a = _mm256_load_si256(&ftPair1[i + 0 * I16_CHUNK_SIZE]);
+                var input1b = _mm256_load_si256(&ftPair1[i + 1 * I16_CHUNK_SIZE]);
+
+                var clipped0a = _mm256_min_epi16(_mm256_max_epi16(input0a, ft_zero), ft_one);
+                var clipped0b = _mm256_min_epi16(_mm256_max_epi16(input0b, ft_zero), ft_one);
+
+                var clipped1a = _mm256_min_epi16(input1a, ft_one);
+                var clipped1b = _mm256_min_epi16(input1b, ft_one);
+
+                var producta = _mm256_mulhi_epi16(_mm256_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
+                var productb = _mm256_mulhi_epi16(_mm256_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
+
+                var product_one = _mm256_packus_epi16(producta, productb).AsByte();
+                _mm256_storeu_si256(&ft_outputs[i], product_one.AsSByte());
+
+                var nnz_mask = vec_nnz_mask(product_one);
+
+                for (int j = 0; j < NNZ_OUTPUTS_PER_CHUNK; j++)
                 {
-                    var input0a = _mm256_load_si256(&acc[i + 0 * I16_CHUNK_SIZE + 0]);
-                    var input0b = _mm256_load_si256(&acc[i + 1 * I16_CHUNK_SIZE + 0]);
+                    int lookup = (nnz_mask >> (j * 8)) & 0xFF;
+                    var offsets = NNZLookup[lookup];
+                    _mm_storeu_si128(&nnzIndices[nnzCount], _mm_add_epi16(baseVec, offsets));
 
-                    var input1a = _mm256_load_si256(&acc[i + 0 * I16_CHUNK_SIZE + L1_PAIR_COUNT]);
-                    var input1b = _mm256_load_si256(&acc[i + 1 * I16_CHUNK_SIZE + L1_PAIR_COUNT]);
-
-                    var clipped0a = _mm256_min_epi16(_mm256_max_epi16(input0a, ft_zero), ft_one);
-                    var clipped0b = _mm256_min_epi16(_mm256_max_epi16(input0b, ft_zero), ft_one);
-
-                    var clipped1a = _mm256_min_epi16(input1a, ft_one);
-                    var clipped1b = _mm256_min_epi16(input1b, ft_one);
-
-                    var producta = _mm256_mulhi_epi16(_mm256_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
-                    var productb = _mm256_mulhi_epi16(_mm256_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
-
-                    var product_one = _mm256_packus_epi16(producta, productb).AsByte();
-                    _mm256_storeu_si256(&ft_outputs[offset + i], product_one.AsSByte());
-
-                    var nnz_mask = vec_nnz_mask(product_one);
-
-                    for (int j = 0; j < NNZ_OUTPUTS_PER_CHUNK; j++)
-                    {
-                        int lookup = (nnz_mask >> (j * 8)) & 0xFF;
-                        var offsets = NNZLookup[lookup];
-                        _mm_storeu_si128(&nnzIndices[nnzCount], _mm_add_epi16(baseVec, offsets));
-
-                        nnzCount += int.PopCount(lookup);
-                        baseVec += baseInc;
-                    }
-
+                    nnzCount += int.PopCount(lookup);
+                    baseVec += baseInc;
                 }
 
-                offset += L1_PAIR_COUNT;
             }
 
 #if PERMUTE_COUNT
             EvalCalls++;
             ActivationCount += (ulong)nnzCount;
-            for (int i = 0; i < L1_SIZE; i++)
+            for (int i = 0; i < L1_PAIRS; i++)
                 NNZCounts[i] += (ft_outputs[i] != 0) ? 1UL : 0;
 #endif
 
@@ -315,7 +315,7 @@ namespace AwesomeOpossum.Logic.Evaluation
             {
                 var index = nnzIndices[i];
                 var input32 = _mm256_set1_epi32(inputs32[index]);
-                var weight = (Vector256<sbyte>*)(&weights[index * L1_CHUNK_PER_32 * L2_SIZE]);
+                var weight = (Vector256<sbyte>*)(&weights[index * 4 * L2_SIZE]);
                 for (int k = 0; k < L2_SIZE / F32_CHUNK_SIZE; k++)
                 {
                     sums[k] = vec_dpbusd_epi32(sums[k], input32.AsByte(), weight[k]);
@@ -470,7 +470,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                         var f = i * L1_SIZE;
 
                         ftBucket[f + dst] = temp[f + src];
-                        ftBucket[f + dst + L1_PAIR_COUNT] = temp[f + src + L1_PAIR_COUNT];
+                        ftBucket[f + dst + L1_PAIRS] = temp[f + src + L1_PAIRS];
                     }
                 }
             }
@@ -481,7 +481,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                 int src = PermuteIndices[dst];
 
                 ftBiases[dst] = temp[src];
-                ftBiases[dst + L1_PAIR_COUNT] = temp[src + L1_PAIR_COUNT];
+                ftBiases[dst + L1_PAIRS] = temp[src + L1_PAIRS];
             }
 
             NativeMemory.AlignedFree(temp);
@@ -490,7 +490,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
         private static void PermuteL1(sbyte[,,] l1Weights)
         {
-            sbyte[,,] temp = new sbyte[OUTPUT_BUCKETS, L2_SIZE, L1_SIZE];
+            sbyte[,,] temp = new sbyte[OUTPUT_BUCKETS, L2_SIZE, L1_PAIRS];
 
             Array.Copy(l1Weights, temp, N_L1W);
             for (int dst = 0; dst < PermuteIndices.Length; dst++)
@@ -502,7 +502,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                     for (int l2 = 0; l2 < L2_SIZE; l2++)
                     {
                         l1Weights[b, l2, dst] = temp[b, l2, src];
-                        l1Weights[b, l2, dst + L1_PAIR_COUNT] = temp[b, l2, src + L1_PAIR_COUNT];
+                        //l1Weights[b, l2, dst + (L1_PAIRS / 2)] = temp[b, l2, src + (L1_PAIRS / 2)];
                     }
                 }
             }
@@ -528,7 +528,7 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             NNZCounts
                 .Select((v, i) => (i, v))
-                .Where(pair => pair.i < (L1_SIZE / 2))
+                .Where(pair => pair.i < L1_PAIRS)
                 .OrderByDescending(pair => pair.v)
                 .Select(pair => pair.i)
                 .Chunk(16)
@@ -541,45 +541,45 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 #if PERMUTE_DISABLED
-        private static readonly int[] PermuteIndices = [.. Enumerable.Range(0, L1_PAIR_COUNT)];
+        private static readonly int[] PermuteIndices = [.. Enumerable.Range(0, L1_PAIRS)];
 #else
         private static readonly int[] PermuteIndices = BestIndices.ToArray();
 #endif
 
         private static ReadOnlySpan<int> BestIndices =>
         [
-            108, 342, 463, 401, 355, 293, 151, 369, 425, 209, 96, 207, 317, 469, 159, 175,
-            460, 7, 486, 192, 243, 190, 452, 482, 126, 277, 204, 138, 330, 258, 395, 282,
-            320, 137, 431, 104, 368, 379, 468, 128, 185, 448, 385, 381, 260, 239, 121, 238,
-            427, 383, 359, 227, 483, 75, 27, 202, 439, 125, 95, 256, 307, 31, 92, 110,
-            218, 502, 363, 109, 70, 264, 360, 326, 149, 272, 442, 90, 221, 480, 329, 2,
-            473, 146, 323, 205, 97, 35, 371, 67, 22, 477, 80, 410, 176, 162, 489, 215,
-            111, 411, 407, 173, 134, 311, 21, 143, 449, 61, 34, 321, 324, 8, 50, 378,
-            285, 17, 312, 183, 343, 252, 120, 387, 263, 509, 222, 331, 432, 101, 361, 398,
-            254, 305, 122, 436, 376, 364, 446, 200, 220, 443, 208, 212, 242, 116, 348, 153,
-            68, 211, 174, 373, 129, 414, 386, 337, 224, 161, 437, 182, 281, 105, 46, 462,
-            357, 322, 77, 400, 198, 408, 43, 345, 447, 296, 396, 199, 66, 14, 292, 426,
-            235, 295, 214, 250, 38, 193, 273, 115, 164, 346, 493, 504, 299, 404, 157, 94,
-            365, 341, 444, 327, 306, 457, 85, 347, 119, 213, 169, 354, 289, 18, 356, 340,
-            127, 10, 510, 48, 286, 423, 351, 382, 241, 45, 507, 156, 178, 409, 268, 194,
-            16, 406, 313, 506, 503, 11, 44, 246, 83, 316, 229, 344, 234, 187, 429, 232,
-            270, 500, 424, 147, 60, 29, 100, 188, 74, 84, 240, 139, 271, 36, 13, 459,
-            498, 445, 247, 253, 82, 244, 91, 349, 451, 12, 28, 338, 166, 350, 33, 228,
-            4, 279, 435, 467, 78, 422, 390, 267, 236, 389, 20, 251, 284, 490, 367, 377,
-            478, 496, 106, 453, 63, 49, 57, 226, 225, 328, 413, 495, 314, 494, 165, 98,
-            58, 114, 65, 72, 308, 366, 201, 54, 136, 332, 197, 266, 132, 492, 399, 41,
-            245, 158, 454, 315, 144, 511, 301, 278, 59, 150, 416, 297, 304, 53, 333, 394,
-            1, 397, 195, 81, 302, 180, 93, 113, 393, 438, 73, 55, 434, 141, 319, 140,
-            259, 15, 230, 276, 300, 89, 474, 249, 191, 171, 392, 418, 403, 487, 64, 62,
-            485, 172, 130, 40, 210, 9, 223, 491, 206, 217, 99, 124, 23, 274, 309, 479,
-            265, 0, 152, 472, 87, 465, 441, 145, 163, 412, 298, 112, 5, 203, 219, 107,
-            353, 135, 168, 488, 310, 508, 56, 3, 155, 475, 374, 470, 497, 417, 71, 375,
-            102, 288, 179, 86, 131, 384, 160, 362, 51, 26, 481, 499, 133, 216, 19, 255,
-            186, 24, 402, 283, 430, 148, 262, 415, 189, 79, 339, 52, 290, 257, 177, 318,
-            428, 181, 231, 370, 380, 405, 388, 287, 440, 269, 303, 335, 30, 118, 42, 466,
-            47, 455, 25, 372, 458, 196, 76, 237, 433, 69, 419, 154, 352, 421, 32, 456,
-            248, 334, 142, 420, 275, 184, 471, 37, 170, 280, 358, 325, 464, 39, 501, 117,
-            461, 294, 391, 484, 167, 103, 261, 6, 336, 123, 450, 88, 476, 291, 233, 505,
+            424, 203, 97, 191, 510, 2, 151, 45, 65, 453, 56, 72, 50, 147, 482, 131,
+            477, 105, 293, 120, 243, 218, 495, 54, 324, 366, 438, 158, 494, 402, 41, 143,
+            286, 27, 378, 334, 326, 231, 306, 361, 61, 249, 40, 458, 202, 79, 376, 360,
+            263, 339, 371, 109, 465, 349, 394, 415, 318, 95, 499, 443, 148, 102, 89, 386,
+            132, 375, 292, 184, 385, 94, 285, 407, 281, 251, 136, 164, 367, 466, 240, 198,
+            382, 57, 351, 17, 62, 256, 277, 224, 391, 417, 153, 505, 379, 208, 316, 200,
+            370, 188, 250, 418, 173, 463, 201, 296, 311, 117, 335, 163, 295, 60, 159, 31,
+            68, 327, 308, 309, 39, 125, 239, 448, 271, 92, 139, 353, 363, 291, 84, 161,
+            343, 21, 48, 478, 273, 489, 172, 227, 400, 392, 496, 71, 26, 233, 189, 156,
+            511, 264, 486, 35, 475, 503, 501, 242, 380, 179, 141, 452, 23, 154, 509, 434,
+            272, 96, 209, 16, 246, 252, 212, 481, 165, 398, 24, 137, 193, 355, 435, 304,
+            157, 437, 81, 480, 470, 449, 384, 36, 226, 232, 298, 329, 388, 431, 19, 34,
+            266, 337, 445, 214, 506, 401, 245, 149, 493, 397, 412, 474, 346, 462, 473, 274,
+            305, 195, 278, 441, 152, 6, 347, 485, 464, 28, 78, 414, 228, 461, 288, 144,
+            155, 113, 283, 403, 268, 389, 169, 107, 88, 383, 192, 490, 377, 178, 187, 74,
+            119, 134, 411, 103, 504, 86, 430, 341, 55, 399, 469, 38, 483, 49, 69, 352,
+            150, 126, 1, 37, 492, 0, 500, 258, 455, 497, 427, 146, 413, 488, 14, 230,
+            442, 168, 99, 219, 22, 374, 476, 301, 310, 439, 426, 181, 138, 253, 104, 358,
+            185, 359, 348, 53, 215, 450, 175, 345, 211, 255, 216, 472, 183, 90, 63, 406,
+            217, 220, 205, 336, 13, 247, 170, 9, 4, 287, 123, 80, 47, 122, 498, 330,
+            315, 289, 459, 282, 127, 290, 428, 166, 110, 51, 433, 130, 98, 254, 199, 3,
+            350, 502, 76, 83, 362, 32, 331, 121, 207, 270, 390, 222, 419, 299, 114, 29,
+            373, 196, 267, 275, 297, 323, 70, 234, 300, 129, 338, 276, 405, 93, 314, 160,
+            468, 372, 368, 171, 325, 115, 420, 204, 111, 457, 284, 320, 33, 313, 446, 244,
+            487, 67, 444, 223, 64, 46, 238, 364, 108, 269, 25, 423, 106, 280, 116, 440,
+            221, 365, 66, 396, 42, 479, 454, 180, 484, 142, 425, 145, 421, 262, 332, 44,
+            174, 73, 491, 319, 294, 235, 447, 7, 58, 507, 182, 387, 10, 356, 91, 177,
+            112, 206, 229, 257, 422, 5, 340, 85, 176, 409, 432, 416, 20, 190, 261, 194,
+            404, 237, 124, 52, 30, 381, 248, 15, 87, 357, 344, 302, 317, 333, 210, 82,
+            140, 303, 77, 260, 279, 43, 75, 436, 456, 12, 265, 101, 241, 322, 451, 429,
+            471, 307, 312, 197, 408, 467, 236, 59, 259, 133, 167, 225, 162, 8, 321, 369,
+            100, 395, 328, 186, 118, 135, 460, 18, 128, 410, 354, 508, 342, 11, 393, 213,
         ];
 
     }

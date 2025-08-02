@@ -8,6 +8,7 @@ public readonly unsafe struct ValueNetContainer<T, W, U>
     private const int I = ValueNetwork.INPUT_BUCKETS;
     private const int O = ValueNetwork.OUTPUT_BUCKETS;
     private const int L1 = ValueNetwork.L1_SIZE;
+    private const int L1P = ValueNetwork.L1_PAIRS;
     private const int L2 = ValueNetwork.L2_SIZE;
     private const int L3 = ValueNetwork.L3_SIZE;
 
@@ -25,7 +26,7 @@ public readonly unsafe struct ValueNetContainer<T, W, U>
         FTWeights = (T*)AlignedAllocZeroed((nuint)sizeof(T) * 768 * L1 * I);
         FTBiases  = (T*)AlignedAllocZeroed((nuint)sizeof(T) * L1);
 
-        var l1w = AlignedAllocZeroed<W>(O * L1 * L2);
+        var l1w = AlignedAllocZeroed<W>(O * L1P * L2);
         var l1b = AlignedAllocZeroed<U>(O * L2);
         var l2w = AlignedAllocZeroed<U>(O * L2 * L3);
         var l2b = AlignedAllocZeroed<U>(O * L3);
@@ -41,7 +42,7 @@ public readonly unsafe struct ValueNetContainer<T, W, U>
 
         for (int i = 0; i < O; i++)
         {
-            L1Weights[i] = &l1w[i * L1 * L2];
+            L1Weights[i] = &l1w[i * L1P * L2];
             L1Biases[i]  = &l1b[i * L2];
             L2Weights[i] = &l2w[i * L2 * L3];
             L2Biases[i]  = &l2b[i * L3];

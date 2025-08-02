@@ -79,6 +79,14 @@ namespace AwesomeOpossum.Logic.Core
         [MethodImpl(Inline)]
         public ulong ThreatsBy(int pc, int pt) => bb.ThreatsBy(pc, pt);
 
+        [MethodImpl(Inline)]
+        public bool ValidKingSquare(int us, int sq)
+        {
+            var pieceAttacks = bb.AttackersTo(sq, bb.Occupancy) & bb.Colors[Not(us)];
+            var kingAttacks = NeighborsMask[sq] & SquareBB[KingSquare(Not(us))];
+            return (pieceAttacks | kingAttacks) == 0;
+        }
+
         public NodeState PlayoutState()
         {
             if (IsDraw(0))
@@ -671,22 +679,12 @@ namespace AwesomeOpossum.Logic.Core
                         return false;
                     }
 
-                    var theirKingAttacks = NeighborsMask[theirKing];
-                    if ((CastlingRookPaths[(int)thisCr] & theirKingAttacks) != 0)
-                    {
-                        //  Edge case: bb.AttackersTo excludes king attacks, which I tried to account for with:
-                        //  | (NeighborsMask[kingTo] & SquareBB[theirKing])
-                        //  This works in standard chess, but not in FRC where their king can attack the intermediate squares
-                        //  while also not attacking the destination. See -> 8/8/8/8/8/8/4k3/1R4KR w B - 1 28
-                        return false;
-                    }
-                    
                     int kingTo = (moveTo > moveFrom ? G1 : C1) ^ (ourColor * 56);
                     ulong them = bb.Colors[theirColor];
                     int dir = (moveFrom < kingTo) ? -1 : 1;
                     for (int sq = kingTo; sq != moveFrom; sq += dir)
                     {
-                        if ((bb.AttackersTo(sq, bb.Occupancy) & them) != 0)
+                        if (!ValidKingSquare(ourColor, sq))
                         {
                             //  Moving here would put us in check
                             return false;
@@ -1106,6 +1104,11 @@ namespace AwesomeOpossum.Logic.Core
                             else
                             {
                                 continue;
+                            }
+
+                            if ((GetIndexFile(rsq) is not Files.A or Files.H) || GetIndexFile(bb.KingIndex(Not(ToMove))) != Files.E)
+                            {
+                                IsChess960 = true;
                             }
 
                             SetCastlingStatus(color, rsq);

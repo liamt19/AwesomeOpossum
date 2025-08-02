@@ -39,6 +39,9 @@
             { "r3k2r/3nnpbp/q2pp1p1/p7/Pp1PPPP1/4BNN1/1P5P/R2Q1RK1 w kq - 0 16", new ulong[] {2428006, 90133805} },
             { "3Qb1k1/1r2ppb1/pN1n2q1/Pp1Pp1Pr/4P2p/4BP2/4B1R1/1R5K b - - 11 40", new ulong[] {1923471, 61309107} },
             { "4k3/3q1r2/1N2r1b1/3ppN2/2nPP3/1B1R2n1/2R1Q3/3K4 w - - 5 1", new ulong[] {2529287, 101660587} },
+            { "2r2r2/p7/8/1p2R3/2PQ4/4p3/P3kPP1/B1R3K1 w C - 1 28", new ulong[] {763414, 34545351} },
+            { "1rk5/3pK3/2p5/8/2p5/5p2/7r/8 b b - 1 39", new ulong[] {18663, 557813} },
+            { "bk5b/8/8/8/8/8/8/RK5R w HA - 0 1", new ulong[] {151848, 3675560} }
         };
 
         /// <summary>

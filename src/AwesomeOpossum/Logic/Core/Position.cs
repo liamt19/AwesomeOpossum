@@ -24,7 +24,7 @@ namespace AwesomeOpossum.Logic.Core
         private readonly StateInfo* EndState;
 
         public PolicyAccumulator PolicyAccumulator;
-        public Accumulator ValueAccumulator;
+        public ValueAccumulator ValueAccumulator;
 
         private readonly bool UpdateNN;
 
@@ -35,6 +35,7 @@ namespace AwesomeOpossum.Logic.Core
         private const int StateStackSize = 2048;
 
         public short* PolicyAccumulation => PolicyAccumulator.Accumulation;
+        public short* ValueAccumulation => ValueAccumulator.Accumulation;
         public StateInfo* NextState => (State + 1);
         public bool InCheck => popcount(State->Checkers) == 1;
         public bool InDoubleCheck => popcount(State->Checkers) == 2;

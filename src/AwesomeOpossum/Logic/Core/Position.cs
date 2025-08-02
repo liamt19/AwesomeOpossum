@@ -1106,11 +1106,6 @@ namespace AwesomeOpossum.Logic.Core
                                 continue;
                             }
 
-                            if ((GetIndexFile(rsq) is not Files.A or Files.H) || GetIndexFile(bb.KingIndex(Not(ToMove))) != Files.E)
-                            {
-                                IsChess960 = true;
-                            }
-
                             SetCastlingStatus(color, rsq);
                         }
                     }

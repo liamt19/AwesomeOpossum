@@ -31,8 +31,6 @@ namespace AwesomeOpossum.Logic.Util
             PolicyEvaluateFn = (delegate* unmanaged<short*, short*, int>)(&PolicyNetwork.EvaluateImpl);
             ValueEvaluateFn = (delegate* unmanaged<short*, sbyte*, float*, float*, float*, float*, float, float>)(&ValueNetwork.EvaluateImpl);
 
-            return; //  TODO: fix(?) float inference
-
             if (!IsOSPlatform(OSPlatform.Windows) && !IsOSPlatform(OSPlatform.Linux))
                 return;
 

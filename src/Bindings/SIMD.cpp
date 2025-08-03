@@ -37,24 +37,17 @@ DLL_EXPORT void SetupNNZ() {
 
 
 template<i32 L1_SIZE>
-i32 PolicyEvaluateImpl(const i16* us, const i16* them, const i16* l1w) {
+i32 PolicyEvaluateImpl(const i16* ft, const i16* l1w) {
 
-    const auto Stride = (L1_SIZE / (sizeof(__m256i) / sizeof(i16))) / 2;
+    constexpr auto L1_CHUNKS = L1_SIZE / I16_CHUNK_SIZE;
+    constexpr auto L1_PAIRS = L1_SIZE / 2;
+    constexpr auto Stride = L1_CHUNKS / 2;
 
     vec_i32 sum = vec_setzero_epi32();
 
-    auto data0 = reinterpret_cast<const __m256i*>(&us[0]);
-    auto data1 = &data0[Stride];
+    auto data0 = reinterpret_cast<const __m256i*>(&ft[0]);
+    auto data1 = reinterpret_cast<const __m256i*>(&ft[L1_PAIRS]);
     auto weights = reinterpret_cast<const __m256i*>(&l1w[0]);
-    for (i32 i = 0; i < Stride; i++) {
-        const auto m0 = _mm256_mullo_epi16(data0[i], weights[i]);
-        const auto m1 = _mm256_madd_epi16(data1[i], m0);
-        sum = _mm256_add_epi32(sum, m1);
-    }
-
-    data0 = reinterpret_cast<const __m256i*>(&them[0]);
-    data1 = &data0[Stride];
-    weights = reinterpret_cast<const __m256i*>(&l1w[L1_SIZE / 2]);
     for (i32 i = 0; i < Stride; i++) {
         const auto m0 = _mm256_mullo_epi16(data0[i], weights[i]);
         const auto m1 = _mm256_madd_epi16(data1[i], m0);
@@ -66,18 +59,20 @@ i32 PolicyEvaluateImpl(const i16* us, const i16* them, const i16* l1w) {
 }
 
 #define EXP_POL(N) \
-    DLL_EXPORT i32 PolicyEvaluate##N(const i16* us, const i16* them, const i16* l1w) { return PolicyEvaluateImpl<N>(us, them, l1w); }
+    DLL_EXPORT i32 PolicyEvaluate##N(const i16* ft, const i16* l1w) { return PolicyEvaluateImpl<N>(ft, l1w); }
 
 EXP_POL( 512)
 EXP_POL( 768)
 EXP_POL(1024)
-EXP_POL(1280)
 EXP_POL(1536)
-
+EXP_POL(2048)
+EXP_POL(2560)
+EXP_POL(3072)
+EXP_POL(4096)
 
 
 template<i32 L1_SIZE, i32 L2_SIZE, i32 L3_SIZE>
-f32 ValueEvaluateImpl(const i16* us, const i16* them, 
+f32 ValueEvaluateImpl(const i16* ft, 
                       const i8* L1Weights, const f32* L1Biases, 
                       const f32* L2Weights, const f32* L2Biases, 
                       const f32* L3Weights, const f32 L3Bias) {
@@ -87,11 +82,11 @@ f32 ValueEvaluateImpl(const i16* us, const i16* them,
     constexpr auto FT_SHIFT = 10;
     constexpr f32 L1_MUL = (1 << FT_SHIFT) / static_cast<float>(FT_QUANT * FT_QUANT * L1_QUANT);
 
-    constexpr auto L1_PAIR_COUNT = L1_SIZE / 2;
+    constexpr auto L1_PAIRS = L1_SIZE / 2;
 
     i32 nnzCount = 0;
-    alignas(32) u16 nnzIndices[L1_SIZE / L1_CHUNK_PER_32];
-    alignas(32) i8 FTOutputs[L1_SIZE];
+    alignas(32) i8 FTOutputs[L1_PAIRS];
+    alignas(32) u16 nnzIndices[L1_PAIRS / L1_CHUNK_PER_32];
 
     alignas(32) vec_i32 L1Temp[L2_SIZE / I32_CHUNK_SIZE] = {};
     alignas(32) f32 L1Outputs[L2_SIZE];
@@ -103,42 +98,40 @@ f32 ValueEvaluateImpl(const i16* us, const i16* them,
         const auto ft_one = vec_set1_epi16(FT_QUANT);
         const vec_128i baseInc = _mm_set1_epi16(u16(8));
         vec_128i baseVec = _mm_setzero_si128();
-        i32 offset = 0;
 
-        for (const auto acc : { us, them }) {
-            for (i32 i = 0; i < L1_PAIR_COUNT; i += (I16_CHUNK_SIZE * 2)) {
-                const auto input0a = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 0 * I16_CHUNK_SIZE + 0]));
-                const auto input0b = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 1 * I16_CHUNK_SIZE + 0]));
+        const auto pair0 = &ft[0];
+        const auto pair1 = &ft[L1_PAIRS];
 
-                const auto input1a = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 0 * I16_CHUNK_SIZE + L1_PAIR_COUNT]));
-                const auto input1b = vec_load_epi16(reinterpret_cast<const vec_i16*>(&acc[i + 1 * I16_CHUNK_SIZE + L1_PAIR_COUNT]));
+        for (i32 i = 0; i < L1_PAIRS; i += (I16_CHUNK_SIZE * 2)) {
+            const auto input0a = vec_load_epi16(reinterpret_cast<const vec_i16*>(&pair0[i + 0 * I16_CHUNK_SIZE]));
+            const auto input0b = vec_load_epi16(reinterpret_cast<const vec_i16*>(&pair0[i + 1 * I16_CHUNK_SIZE]));
 
-                const auto clipped0a = vec_min_epi16(vec_max_epi16(input0a, ft_zero), ft_one);
-                const auto clipped0b = vec_min_epi16(vec_max_epi16(input0b, ft_zero), ft_one);
+            const auto input1a = vec_load_epi16(reinterpret_cast<const vec_i16*>(&pair1[i + 0 * I16_CHUNK_SIZE]));
+            const auto input1b = vec_load_epi16(reinterpret_cast<const vec_i16*>(&pair1[i + 1 * I16_CHUNK_SIZE]));
 
-                const auto clipped1a = vec_min_epi16(input1a, ft_one);
-                const auto clipped1b = vec_min_epi16(input1b, ft_one);
+            const auto clipped0a = vec_min_epi16(vec_max_epi16(input0a, ft_zero), ft_one);
+            const auto clipped0b = vec_min_epi16(vec_max_epi16(input0b, ft_zero), ft_one);
 
-                const auto producta = vec_mulhi_epi16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
-                const auto productb = vec_mulhi_epi16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
+            const auto clipped1a = vec_min_epi16(input1a, ft_one);
+            const auto clipped1b = vec_min_epi16(input1b, ft_one);
 
-                const auto product_one = vec_packus_epi16(producta, productb);
-                vec_storeu_epi8(reinterpret_cast<vec_i8*>(&FTOutputs[offset + i]), product_one);
+            const auto producta = vec_mulhi_epi16(vec_slli_epi16(clipped0a, 16 - FT_SHIFT), clipped1a);
+            const auto productb = vec_mulhi_epi16(vec_slli_epi16(clipped0b, 16 - FT_SHIFT), clipped1b);
 
-                const auto nnz_mask = vec_nnz_mask(product_one);
+            const auto product_one = vec_packus_epi16(producta, productb);
+            vec_storeu_epi8(reinterpret_cast<vec_i8*>(&FTOutputs[i]), product_one);
 
-                for (i32 j = 0; j < NNZ_OUTPUTS_PER_CHUNK; j++) {
-                    i32 lookup = (nnz_mask >> (j * 8)) & 0xFF;
-                    auto offsets = nnzTable.Entries[lookup];
-                    _mm_storeu_si128(reinterpret_cast<vec_128i*>(&nnzIndices[nnzCount]), _mm_add_epi16(baseVec, offsets));
+            const auto nnz_mask = vec_nnz_mask(product_one);
 
-                    nnzCount += std::popcount(static_cast<u32>(lookup));
-                    baseVec = _mm_add_epi16(baseVec, baseInc);
-                }
+            for (i32 j = 0; j < NNZ_OUTPUTS_PER_CHUNK; j++) {
+                i32 lookup = (nnz_mask >> (j * 8)) & 0xFF;
+                auto offsets = nnzTable.Entries[lookup];
+                _mm_storeu_si128(reinterpret_cast<vec_128i*>(&nnzIndices[nnzCount]), _mm_add_epi16(baseVec, offsets));
 
+                nnzCount += std::popcount(static_cast<u32>(lookup));
+                baseVec = _mm_add_epi16(baseVec, baseInc);
             }
 
-            offset += L1_PAIR_COUNT;
         }
     }
 
@@ -202,7 +195,7 @@ f32 ValueEvaluateImpl(const i16* us, const i16* them,
 
 #define EXP_VAL(N, O, P) EXP_VAL_IMPL(N, O, P)
 #define EXP_VAL_IMPL(N, O, P) \
-    DLL_EXPORT f32 ValueEvaluate##N##_##O##_##P(const i16* us, const i16* them, const i8* l1w, const f32* l1b, const f32* l2w, const f32* l2b, const f32* l3w, const f32 l3b) { return ValueEvaluateImpl<N, O, P>(us, them, l1w, l1b, l2w, l2b, l3w, l3b); }
+    DLL_EXPORT f32 ValueEvaluate##N##_##O##_##P(const i16* ft, const i8* l1w, const f32* l1b, const f32* l2w, const f32* l2b, const f32* l3w, const f32 l3b) { return ValueEvaluateImpl<N, O, P>(ft, l1w, l1b, l2w, l2b, l3w, l3b); }
 
 
 EXP_VAL(1024,   32,   32) EXP_VAL(1024,   32,   64) EXP_VAL(1024,   32,  128) EXP_VAL(1024,   32,  256) EXP_VAL(1024,   32,  384) 

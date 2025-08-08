@@ -14,7 +14,7 @@ public static class DatagenParameters
 
     public const int RandomPlies = 4;
 
-    public const int SoftNodeLimit = 10000;
+    public const int IterationLimit = 1000;
     public const int DepthLimit = 14;
 
     public const bool DFRC = true;
@@ -45,7 +45,7 @@ public static unsafe class Selfplay
         ulong totalPositions = 0, totalNodes = 0;
         ulong totalSearches = 0, totalFill = 0, totalIters = 0;
 
-        var info = SearchInformation.DatagenStandard(pos, SoftNodeLimit, DepthLimit);
+        var info = SearchInformation.DatagenStandard(pos, IterationLimit, DepthLimit);
 
         for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
         {
@@ -114,7 +114,7 @@ public static unsafe class Selfplay
         ulong totalPositions = 0, totalNodes = 0;
         ulong totalSearches = 0, totalFill = 0, totalIters = 0;
 
-        var info = SearchInformation.DatagenStandard(pos, SoftNodeLimit, DepthLimit);
+        var info = SearchInformation.DatagenStandard(pos, IterationLimit, DepthLimit);
 
         for (ulong gameNum = 0; gameNum < gamesToRun; gameNum++)
         {
@@ -194,7 +194,7 @@ public static unsafe class Selfplay
         Log($"Threads:      {threads}");
         Log($"Games/thread: {numGames:N0}");
         Log($"Total games:  {numGames * threads:N0}");
-        Log($"Node limit:   {SoftNodeLimit:N0}");
+        Log($"Iter limit:   {IterationLimit:N0}");
         Log($"Depth limit:  {DepthLimit}");
         Log($"Variant:      {(DFRC ? "DFRC" : "Standard")}");
         Log($"Book:         {(UseBook ? BookPath : "<None>")}");
@@ -228,7 +228,7 @@ public static unsafe class Selfplay
         return v;
     }
 
-    private static string OutFileName(int tid) => $"{(DFRC ? "dfrc_" : "")}{SoftNodeLimit / 1000}k_{DepthLimit}d_{tid}.bin";
+    private static string OutFileName(int tid) => $"{(DFRC ? "dfrc_" : "")}{IterationLimit}it_{DepthLimit}d_{tid}.bin";
 
 
 

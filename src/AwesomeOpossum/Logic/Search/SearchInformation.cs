@@ -13,7 +13,7 @@ namespace AwesomeOpossum.Logic.Search
 
         public int DepthLimit = Utilities.MaxDepth;
         public ulong HardNodeLimit = MaxSearchNodes;
-        public ulong SoftNodeLimit = MaxSearchNodes;
+        public ulong IterationLimit = MaxSearchNodes;
 
         public bool SearchActive = false;
 
@@ -32,12 +32,11 @@ namespace AwesomeOpossum.Logic.Search
         public bool IsInfinite => !HasDepthLimit && !HasTimeLimit;
 
 
-        public static SearchInformation DatagenStandard(Position pos, ulong nodeLimit, int depthLimit)
+        public static SearchInformation DatagenStandard(Position pos, ulong iterationLimit, int depthLimit)
         {
             return new SearchInformation(pos)
             {
-                SoftNodeLimit = nodeLimit,
-                HardNodeLimit = nodeLimit,
+                IterationLimit = iterationLimit,
                 DepthLimit = depthLimit,
                 OnIterationUpdate = null,
                 OnSearchFinish = null,

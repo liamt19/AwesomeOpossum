@@ -15,6 +15,7 @@ namespace AwesomeOpossum.Logic.Threads
 
         public ulong Nodes;
         public ulong HardNodeLimit;
+        public ulong IterationLimit;
         public ulong PlayoutIteration;
 
         public int ThreadIdx;
@@ -248,13 +249,16 @@ namespace AwesomeOpossum.Logic.Threads
             SearchInformation info = _info;
             info.Position = RootPosition;
             HardNodeLimit = info.HardNodeLimit;
+            IterationLimit = info.IterationLimit;
             Stopwatch outputTimer = Stopwatch.StartNew();
 
             void Display()
             {
+#if !DATAGEN
                 outputTimer.Restart();
                 if (!Minimal)
                     info.OnIterationUpdate?.Invoke(ref info);
+#endif
             }
 
             Move bestMove = Move.Null, lastBestMove = Move.Null;
@@ -282,6 +286,7 @@ namespace AwesomeOpossum.Logic.Threads
                 Nodes += usedDepth;
                 SelDepth = Math.Max(SelDepth, usedDepth - 1);
 
+#if !DATAGEN
                 if (PlayoutIteration % 128 == 0)
                 {
                     (_, bestMove, bestScore) = Tree.GetBestAction(Tree.RootNodePointer);
@@ -300,6 +305,7 @@ namespace AwesomeOpossum.Logic.Threads
                     if (CurrentDepth >= info.DepthLimit)
                         SetStop(true);
                 }
+#endif
 
                 if (Tree.RootNode.IsTerminal)
                 {
@@ -344,7 +350,7 @@ namespace AwesomeOpossum.Logic.Threads
         public bool NodeLimitReached()
         {
 #if DATAGEN
-            return (Nodes >= HardNodeLimit);
+            return (Nodes >= HardNodeLimit) || (PlayoutIteration >= IterationLimit);
 #endif
 
             if (SearchOptions.Threads == 1)

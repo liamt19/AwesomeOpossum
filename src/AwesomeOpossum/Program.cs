@@ -22,6 +22,8 @@ namespace AwesomeOpossum
             {
                 if (args[0] == "bench")
                 {
+                    SIMDBindings.SetDefaultFuncPtrs();
+
                     SearchBench.Warmup();
                     SearchBench.Go(openBench: true);
                     Environment.Exit(0);
@@ -491,10 +493,18 @@ namespace AwesomeOpossum
             {
                 try
                 {
+                    bool hasBindings = SIMDBindings.HasBindings;
+                    
+                    if (hasBindings) 
+                        SIMDBindings.SetDefaultFuncPtrs();
+
                     if (input.Length > 5 && int.TryParse(input.AsSpan(input.IndexOf("bench") + 6), out int depth))
                         SearchBench.Go(depth);
                     else
                         SearchBench.Go();
+
+                    if (hasBindings) 
+                        SIMDBindings.TryLoadBindings();
                 }
                 catch (Exception e)
                 {

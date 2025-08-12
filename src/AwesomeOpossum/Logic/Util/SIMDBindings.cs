@@ -34,7 +34,6 @@ namespace AwesomeOpossum.Logic.Util
             DLLResouceName = $"AwesomeOpossum.{DEST_NAME}";
             AbsoluteDLLDestPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), DEST_NAME);
 
-            DeleteBindingsOnCloseMaybe(AbsoluteDLLDestPath);
             TryLoadBindings(verbose: true);
         }
 
@@ -141,20 +140,6 @@ namespace AwesomeOpossum.Logic.Util
             } catch (IOException _) { return true; } // This is fine if the file is in use
 
             return true;
-        }
-
-
-        private static void DeleteBindingsOnCloseMaybe(string absPath)
-        {
-            AppDomain.CurrentDomain.ProcessExit += (_, _) =>
-            {
-                try
-                {
-                    if (File.Exists(absPath))
-                        File.Delete(absPath);
-                }
-                catch { }
-            };
         }
     }
 }

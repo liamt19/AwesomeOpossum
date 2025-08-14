@@ -81,6 +81,9 @@ namespace AwesomeOpossum.Logic.Core
         public ulong ThreatsBy(int pc, int pt) => bb.ThreatsBy(pc, pt);
 
         [MethodImpl(Inline)]
+        public ulong ThreatsBy(int pc) => bb.ThreatsBy(pc);
+
+        [MethodImpl(Inline)]
         public bool ValidKingSquare(int us, int sq)
         {
             var pieceAttacks = bb.AttackersTo(sq, bb.Occupancy) & bb.Colors[Not(us)];

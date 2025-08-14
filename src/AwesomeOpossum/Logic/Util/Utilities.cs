@@ -183,6 +183,8 @@ namespace AwesomeOpossum.Logic.Util
         public static int Not(int color) => color ^ 1;
         public static uint Not(uint v) => v ^ 1;
 
+        public static bool HasBit(this ulong u, int i) => (u & (1UL << i)) != 0;
+
         /// <summary>
         /// Returns the name of the <paramref name="color"/>.
         /// </summary>

@@ -145,6 +145,9 @@ namespace AwesomeOpossum.Logic.Magic
                                m.attacks[((boardAll & m.mask) * m.number) >> m.shift];
         }
 
+        [MethodImpl(Inline)]
+        public static ulong GetQueenMoves(ulong boardAll, int idx) => GetBishopMoves(boardAll, idx) | GetRookMoves(boardAll, idx);
+
         private static ulong TestPextFancy(ulong boardAll, int idx)
         {
             ref MagicSquare bm = ref BishopMagics[idx];

@@ -24,7 +24,7 @@ namespace AwesomeOpossum.Logic.Evaluation
             }
         }
 
-        public const int INPUT_BUCKETS = 1;
+        public const int INPUT_BUCKETS = 4;
         public const int INPUT_SIZE = 768;
         public const int L1_SIZE = 2048;
         public const int OUTPUT_SIZE = 1880;
@@ -112,6 +112,9 @@ namespace AwesomeOpossum.Logic.Evaluation
             var hori = (pos.KingSquare(stm) % 8 > 3) ? 7 : 0;
             var flip = vert ^ hori;
 
+            var atts = pos.ThreatsBy(ntm);
+            var defs = pos.ThreatsBy(stm);
+
             var accumulation = pos.PolicyAccumulation;
             Unsafe.CopyBlock(accumulation, Net.FTBiases, sizeof(short) * L1_SIZE);
 
@@ -124,6 +127,10 @@ namespace AwesomeOpossum.Logic.Evaluation
                 {
                     int sq = poplsb(&boys);
                     var idx = (64 * pt) + (sq ^ flip);
+
+                    idx += atts.HasBit(sq) ? (768 * 1) : 0;
+                    idx += defs.HasBit(sq) ? (768 * 2) : 0;
+
                     PolicyUnrollThings.Add(accumulation, accumulation, &Net.FTWeights[idx * L1_SIZE]);
                 }
 
@@ -131,6 +138,10 @@ namespace AwesomeOpossum.Logic.Evaluation
                 {
                     int sq = poplsb(&opps);
                     var idx = 384 + (64 * pt) + (sq ^ flip);
+
+                    idx += atts.HasBit(sq) ? (768 * 1) : 0;
+                    idx += defs.HasBit(sq) ? (768 * 2) : 0;
+
                     PolicyUnrollThings.Add(accumulation, accumulation, &Net.FTWeights[idx * L1_SIZE]);
                 }
             }

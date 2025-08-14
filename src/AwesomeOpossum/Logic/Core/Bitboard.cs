@@ -242,5 +242,33 @@ namespace AwesomeOpossum.Logic.Core
             return mask;
         }
 
+        public ulong ThreatsBy(int pc)
+        {
+            var us = Colors[pc];
+            var theirKing = SquareBB[KingIndex(Not(pc))];
+            var occ = Occupancy ^ theirKing;
+
+            ulong mask = 0;
+
+            mask |= NeighborsMask[KingIndex(pc)];
+
+            var pawns = Pieces[Pawn] & us;
+            while (pawns != 0) mask |= PawnAttackMasks[pc][poplsb(&pawns)];
+
+            var knights = Pieces[Knight] & us;
+            while (knights != 0) mask |= KnightMasks[poplsb(&knights)];
+
+            var bishops = Pieces[Bishop] & us;
+            while (bishops != 0) mask |= GetBishopMoves(occ, poplsb(&bishops));
+
+            var rooks = Pieces[Rook] & us;
+            while (rooks != 0) mask |= GetRookMoves(occ, poplsb(&rooks));
+
+            var queens = Pieces[Queen] & us;
+            while (queens != 0) mask |= GetQueenMoves(occ, poplsb(&queens));
+            
+            return mask;
+        }
+
     }
 }

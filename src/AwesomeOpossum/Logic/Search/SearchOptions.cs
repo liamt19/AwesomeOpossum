@@ -20,11 +20,15 @@
         public static float CPuctVisitScale = 3999.7565f;
         public static float CPuctBaseRoot = 0.5141f;
         public static float CPuctBase = 0.2793f;
+        public static float FPUBase = 1.0000f;
         public static float PSTQInc = 0.7948f;
         public static float PSTQScale = 0.2565f;
         public static float PSTNumer = 2.2689f;
         public static float PSTPow = 1.4886f;
         public static float PSTOffset = 0.1502f;
         public static float PSTSinDiv = 25.5294f;
+
+        public static float StabilityBase = 0.9000f;
+        public static float StabilityMul = 0.1440f;
     }
 }

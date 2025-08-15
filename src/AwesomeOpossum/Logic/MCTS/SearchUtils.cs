@@ -24,7 +24,7 @@ public static unsafe class SearchUtils
 
     public static float GetFPU(in Node node)
     {
-        return 1.0f - node.QValue;
+        return FPUBase - node.QValue;
     }
 
     public static float GetExplorationScale(in Node node)

@@ -231,11 +231,7 @@ namespace AwesomeOpossum.Logic.Threads
 
         public void ClearTree()
         {
-#if DATAGEN
             Tree.ClearFast();
-#else
-            Tree.Clear();
-#endif
             Tree.PushRoot(RootPosition);
         }
 

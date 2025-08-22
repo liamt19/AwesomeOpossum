@@ -265,6 +265,8 @@ namespace AwesomeOpossum.Logic.Threads
             float bestScore = 0;
             uint bmChanges = 0;
 
+            var softTimeLimit = TimeManager.SoftTimeLimit;
+
             while (!ShouldStop())
             {
                 uint usedDepth = 0;
@@ -327,9 +329,8 @@ namespace AwesomeOpossum.Logic.Threads
 
                     if (PlayoutIteration % 4096 == 0 && TimeManager.HasSoftTime)
                     {
-                        double bmStability = (0.90 + (Math.Log(bmChanges + 1) * 0.144));
-
-                        if (TimeManager.GetSearchTime() >= TimeManager.SoftTimeLimit * bmStability)
+                        var bmStability = (StabilityBase + (float.Log(bmChanges + 1) * StabilityMul));
+                        if (TimeManager.GetSearchTime() >= softTimeLimit * bmStability)
                             SetStop();
 
                         bmChanges = 0;

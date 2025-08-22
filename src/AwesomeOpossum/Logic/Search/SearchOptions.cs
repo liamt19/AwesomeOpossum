@@ -13,22 +13,22 @@
         public static bool Minimal = false;
 
 
-        public static float ExplTau = 0.6493f;
-        public static float GiniBase = 0.6700f;
-        public static float GiniScale = 1.5000f;
-        public static float GiniMin = 2.1500f;
-        public static float CPuctVisitScale = 3999.7565f;
-        public static float CPuctBaseRoot = 0.5141f;
-        public static float CPuctBase = 0.2793f;
-        public static float FPUBase = 1.0000f;
-        public static float PSTQInc = 0.7948f;
-        public static float PSTQScale = 0.2565f;
-        public static float PSTNumer = 2.2689f;
-        public static float PSTPow = 1.4886f;
-        public static float PSTOffset = 0.1502f;
-        public static float PSTSinDiv = 25.5294f;
+        public static float ExplTau = 0.659278f;
+        public static float GiniBase = 0.663742f;
+        public static float GiniScale = 1.544302f;
+        public static float GiniMin = 2.136079f;
+        public static float CPuctVisitScale = 4077.954306f;
+        public static float CPuctBaseRoot = 0.520352f;
+        public static float CPuctBase = 0.261141f;
+        public static float FPUBase = 1.019626f;
+        public static float PSTQInc = 0.801457f;
+        public static float PSTQScale = 0.252099f;
+        public static float PSTNumer = 2.371023f;
+        public static float PSTPow = 1.342446f;
+        public static float PSTOffset = 0.140031f;
+        public static float PSTSinDiv = 26.110095f;
 
-        public static float StabilityBase = 0.9000f;
-        public static float StabilityMul = 0.1440f;
+        public static float StabilityBase = 0.976387f;
+        public static float StabilityMul = 0.143435f;
     }
 }

@@ -102,7 +102,7 @@ namespace AwesomeOpossum.Logic.Threads
             SharedInfo = rootInfo;          //  Initialize the shared SearchInformation
             SharedInfo.SearchActive = true; //  And mark this search as having started
 
-            ScoredMove* moves = stackalloc ScoredMove[MoveListSize];
+            Move* moves = stackalloc Move[MoveListSize];
             int size = rootPosition.GenLegal(moves);
 
             var rootFEN = setup.StartFEN;

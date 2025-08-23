@@ -51,8 +51,4 @@ public static unsafe class SearchUtils
         return 1.0f + winningAdj + depthAdj + sinAdj;
     }
 
-    public static float PolicyForMove(Position pos, Move move)
-    {
-        return PolicyNetwork.Evaluate(pos, move);
-    }
 }

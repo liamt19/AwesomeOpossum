@@ -20,6 +20,7 @@ global using static AwesomeOpossum.Logic.Threads.SearchThreadPool;
 global using static AwesomeOpossum.Logic.Util.ExceptionHandling;
 global using static AwesomeOpossum.Logic.Util.Interop;
 global using static AwesomeOpossum.Logic.Util.Utilities;
+global using static AwesomeOpossum.Logic.Util.TensorUtil;
 
 global using Color = AwesomeOpossum.Logic.Data.Color;
 global using Debug = System.Diagnostics.Debug;

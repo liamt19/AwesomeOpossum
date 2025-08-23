@@ -1,4 +1,6 @@
-﻿using AwesomeOpossum.Logic.MCTS;
+﻿using AwesomeOpossum.Logic.Evaluation;
+using AwesomeOpossum.Logic.MCTS;
+using System.Numerics.Tensors;
 
 namespace AwesomeOpossum.Logic.Core
 {
@@ -9,7 +11,7 @@ namespace AwesomeOpossum.Logic.Core
 
         /// <summary>
         /// Generates the pseudo-legal moves for all of the pawns in the position, placing them into the 
-        /// ScoredMove <paramref name="list"/> starting at the index <paramref name="size"/> and the new number
+        /// Move <paramref name="list"/> starting at the index <paramref name="size"/> and the new number
         /// of moves in the list is returned.
         /// <para></para>
         /// Only moves which have a To square whose bit is set in <paramref name="targets"/> will be generated.
@@ -21,7 +23,7 @@ namespace AwesomeOpossum.Logic.Core
         /// When generating evasions, <paramref name="targets"/> should be set to the <see cref="LineBB"/> between our king and the checker, which is the mask
         /// of squares that would block the check or capture the piece giving check.
         /// </summary>
-        public int GenPawns<GenType>(ScoredMove* list, ulong targets, int size) where GenType : MoveGenerationType
+        public int GenPawns<GenType>(Move* list, ulong targets, int size) where GenType : MoveGenerationType
         {
             bool noisyMoves  = typeof(GenType) == typeof(GenNoisy);
             bool evasions    = typeof(GenType) == typeof(GenEvasions);
@@ -60,13 +62,13 @@ namespace AwesomeOpossum.Logic.Core
                 while (moves != 0)
                 {
                     int to = poplsb(&moves);
-                    list[size++].Move = new Move(to - up, to);
+                    list[size++] = new Move(to - up, to);
                 }
 
                 while (twoMoves != 0)
                 {
                     int to = poplsb(&twoMoves);
-                    list[size++].Move = new Move(to - up - up, to);
+                    list[size++] = new Move(to - up - up, to);
                 }
             }
 
@@ -108,13 +110,13 @@ namespace AwesomeOpossum.Logic.Core
             while (capturesL != 0)
             {
                 int to = poplsb(&capturesL);
-                list[size++].Move = new Move(to - up - Direction.WEST, to);
+                list[size++] = new Move(to - up - Direction.WEST, to);
             }
 
             while (capturesR != 0)
             {
                 int to = poplsb(&capturesR);
-                list[size++].Move = new Move(to - up - Direction.EAST, to);
+                list[size++] = new Move(to - up - Direction.EAST, to);
             }
 
             if (State->EPSquare != EPNone && !noisyMoves)
@@ -129,22 +131,22 @@ namespace AwesomeOpossum.Logic.Core
                 while (mask != 0)
                 {
                     int from = poplsb(&mask);
-                    list[size++].Move = new Move(from, State->EPSquare, Move.FlagEnPassant);
+                    list[size++] = new Move(from, State->EPSquare, Move.FlagEnPassant);
                 }
             }
 
             return size;
 
 
-            int MakePromotionChecks(ScoredMove* list, int from, int promotionSquare, bool isCapture, int size)
+            int MakePromotionChecks(Move* list, int from, int promotionSquare, bool isCapture, int size)
             {
-                list[size++].Move = new Move(from, promotionSquare, Move.FlagPromoQueen);
+                list[size++] = new Move(from, promotionSquare, Move.FlagPromoQueen);
 
                 if (!noisyMoves || isCapture)
                 {
-                    list[size++].Move = new Move(from, promotionSquare, Move.FlagPromoKnight);
-                    list[size++].Move = new Move(from, promotionSquare, Move.FlagPromoRook);
-                    list[size++].Move = new Move(from, promotionSquare, Move.FlagPromoBishop);
+                    list[size++] = new Move(from, promotionSquare, Move.FlagPromoKnight);
+                    list[size++] = new Move(from, promotionSquare, Move.FlagPromoRook);
+                    list[size++] = new Move(from, promotionSquare, Move.FlagPromoBishop);
                 }
 
                 return size;
@@ -154,10 +156,10 @@ namespace AwesomeOpossum.Logic.Core
 
         /// <summary>
         /// Generates all the pseudo-legal moves for the player whose turn it is to move, given the <see cref="MoveGenerationType"/>.
-        /// These are placed in the ScoredMove <paramref name="list"/> starting at the index <paramref name="size"/> and the new number
+        /// These are placed in the Move <paramref name="list"/> starting at the index <paramref name="size"/> and the new number
         /// of moves in the list is returned.
         /// </summary>
-        public int GenAll<GenType>(ScoredMove* list, int size = 0) where GenType : MoveGenerationType
+        public int GenAll<GenType>(Move* list, int size = 0) where GenType : MoveGenerationType
         {
             bool noisyMoves  = typeof(GenType) == typeof(GenNoisy);
             bool evasions    = typeof(GenType) == typeof(GenEvasions);
@@ -190,7 +192,7 @@ namespace AwesomeOpossum.Logic.Core
             ulong moves = NeighborsMask[ourKing] & (evasions ? ~us : targets);
             while (moves != 0)
             {
-                list[size++].Move = new Move(ourKing, poplsb(&moves));
+                list[size++] = new Move(ourKing, poplsb(&moves));
             }
 
             if (nonEvasions)
@@ -198,18 +200,18 @@ namespace AwesomeOpossum.Logic.Core
                 if (ToMove == White && (ourKing == E1 || IsChess960))
                 {
                     if (CanCastle(occ, us, CastlingStatus.WK))
-                        list[size++].Move = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.WK], Move.FlagCastle);
+                        list[size++] = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.WK], Move.FlagCastle);
 
                     if (CanCastle(occ, us, CastlingStatus.WQ))
-                        list[size++].Move = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.WQ], Move.FlagCastle);
+                        list[size++] = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.WQ], Move.FlagCastle);
                 }
                 else if (ToMove == Black && (ourKing == E8 || IsChess960))
                 {
                     if (CanCastle(occ, us, CastlingStatus.BK))
-                        list[size++].Move = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.BK], Move.FlagCastle);
+                        list[size++] = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.BK], Move.FlagCastle);
 
                     if (CanCastle(occ, us, CastlingStatus.BQ))
-                        list[size++].Move = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.BQ], Move.FlagCastle);
+                        list[size++] = new Move(ourKing, CastlingRookSquares[(int)CastlingStatus.BQ], Move.FlagCastle);
                 }
             }
 
@@ -222,7 +224,7 @@ namespace AwesomeOpossum.Logic.Core
         /// The moves are placed into the array that <paramref name="legal"/> points to, 
         /// and the number of moves that were created is returned.
         /// </summary>
-        public int GenLegal(ScoredMove* legal)
+        public int GenLegal(Move* legal)
         {
             int numMoves = (State->Checkers != 0) ? GenAll<GenEvasions>(legal) :
                                                     GenAll<GenNonEvasions>(legal);
@@ -231,12 +233,12 @@ namespace AwesomeOpossum.Logic.Core
             int theirKing = State->KingSquares[Not(ToMove)];
             ulong pinned  = State->BlockingPieces[ToMove];
 
-            ScoredMove* curr = legal;
-            ScoredMove* end = legal + numMoves;
+            Move* curr = legal;
+            Move* end = legal + numMoves;
 
             while (curr != end)
             {
-                if (!IsLegal(curr->Move, ourKing, theirKing, pinned))
+                if (!IsLegal(*curr, ourKing, theirKing, pinned))
                 {
                     *curr = *--end;
                     numMoves--;
@@ -250,39 +252,43 @@ namespace AwesomeOpossum.Logic.Core
             return numMoves;
         }
 
-
-        public (uint nLegal, float maxPolicy) GenerateAndScoreLegals(ScoredMove* legal)
+        public uint GenerateAndScoreLegals(Move* legal, ref Span<float> policies)
         {
+            //  Note: Passing policies byref so that we can slice it here.
+            //  This is both for convenience and correctness because logits are usually negative and
+            //  we don't want TensorPrimitives.Max seeing the trailing 0.0f's in the span.
+
+            PolicyNetwork.RefreshPolicyAccumulator(this);
             int numMoves = Checked ? GenAll<GenEvasions>(legal) : GenAll<GenNonEvasions>(legal);
 
             int ourKing = State->KingSquares[ToMove];
             int theirKing = State->KingSquares[Not(ToMove)];
             ulong pinned = State->BlockingPieces[ToMove];
 
-            float maxPolicy = float.MinValue;
-
-            ScoredMove* curr = legal;
-            ScoredMove* end = legal + numMoves;
+            Move* curr = legal;
+            Move* end = legal + numMoves;
             while (curr != end)
             {
-                if (!IsLegal(curr->Move, ourKing, theirKing, pinned))
+                if (!IsLegal(*curr, ourKing, theirKing, pinned))
                 {
                     *curr = *--end;
                     numMoves--;
                 }
                 else
                 {
-                    curr->Score = SearchUtils.PolicyForMove(this, curr->Move);
-                    maxPolicy = MathF.Max(maxPolicy, curr->Score);
                     ++curr;
                 }
             }
 
-            return ((uint)numMoves, maxPolicy);
+            policies = policies[..numMoves];
+            for (int i = 0; i < numMoves; i++)
+                policies[i] = PolicyNetwork.Evaluate(this, legal[i]);
+
+            return (uint)numMoves;
         }
 
 
-        public int GenNormal(ScoredMove* list, int pt, ulong targets, int size)
+        public int GenNormal(Move* list, int pt, ulong targets, int size)
         {
             // TODO: JIT seems to prefer having separate methods for each piece type, instead of a 'pt' parameter
             // This is far more convenient though
@@ -297,7 +303,7 @@ namespace AwesomeOpossum.Logic.Core
                 while (moves != 0)
                 {
                     int to = poplsb(&moves);
-                    list[size++].Move = new Move(idx, to);
+                    list[size++] = new Move(idx, to);
                 }
             }
 
@@ -310,7 +316,7 @@ namespace AwesomeOpossum.Logic.Core
         /// The moves are placed into the array that <paramref name="pseudo"/> points to, 
         /// and the number of moves that were created is returned.
         /// </summary>
-        public int GenPseudoLegal(ScoredMove* pseudo)
+        public int GenPseudoLegal(Move* pseudo)
         {
             return (State->Checkers != 0) ? GenAll<GenEvasions>   (pseudo)
                                           : GenAll<GenNonEvasions>(pseudo);

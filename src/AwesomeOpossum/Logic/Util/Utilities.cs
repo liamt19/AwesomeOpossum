@@ -38,26 +38,19 @@ namespace AwesomeOpossum.Logic.Util
         public const int BetaStart = ScoreMate;
         public const int MaxSearchTime = int.MaxValue - 1;
         public const ulong MaxSearchNodes = ulong.MaxValue - 1;
-        public const int DefaultMovesToGo = 20;
 
 
         public const ulong FileABB = 0x0101010101010101UL;
-        public const ulong FileBBB = FileABB << 1;
-        public const ulong FileCBB = FileABB << 2;
-        public const ulong FileDBB = FileABB << 3;
-        public const ulong FileEBB = FileABB << 4;
-        public const ulong FileFBB = FileABB << 5;
-        public const ulong FileGBB = FileABB << 6;
-        public const ulong FileHBB = FileABB << 7;
+        public const ulong FileHBB = 0x8080808080808080UL;
 
-        public const ulong Rank1BB = 0xFF;
-        public const ulong Rank2BB = Rank1BB << (8 * 1);
-        public const ulong Rank3BB = Rank1BB << (8 * 2);
-        public const ulong Rank4BB = Rank1BB << (8 * 3);
-        public const ulong Rank5BB = Rank1BB << (8 * 4);
-        public const ulong Rank6BB = Rank1BB << (8 * 5);
-        public const ulong Rank7BB = Rank1BB << (8 * 6);
-        public const ulong Rank8BB = Rank1BB << (8 * 7);
+        public const ulong Rank1BB = 0x00000000000000FFUL;
+        public const ulong Rank2BB = 0x000000000000FF00UL;
+        public const ulong Rank3BB = 0x0000000000FF0000UL;
+        public const ulong Rank4BB = 0x00000000FF000000UL;
+        public const ulong Rank5BB = 0x000000FF00000000UL;
+        public const ulong Rank6BB = 0x0000FF0000000000UL;
+        public const ulong Rank7BB = 0x00FF000000000000UL;
+        public const ulong Rank8BB = 0xFF00000000000000UL;
 
 
         public const string InitialFEN = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -418,19 +411,19 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
-        public static unsafe string Stringify(ScoredMove* list, int listSize = 0) => Stringify(new Span<ScoredMove>(list, MoveListSize), listSize);
+        public static unsafe string Stringify(Move* list, int listSize = 0) => Stringify(new Span<Move>(list, MoveListSize), listSize);
 
-        public static string Stringify(Span<ScoredMove> list, int listSize = 0)
+        public static string Stringify(Span<Move> list, int listSize = 0)
         {
             StringBuilder sb = new StringBuilder();
             int loopMax = (listSize > 0) ? Math.Min(list.Length, listSize) : list.Length;
             for (int i = 0; i < loopMax; i++)
             {
-                if (list[i].Move.Equals(Move.Null))
+                if (list[i].Equals(Move.Null))
                 {
                     break;
                 }
-                string s = list[i].Move.ToString();
+                string s = list[i].ToString();
                 sb.Append(s + ", ");
             }
 
@@ -442,19 +435,19 @@ namespace AwesomeOpossum.Logic.Util
         }
 
 
-        public static unsafe string Stringify(ScoredMove* list, Position position, int listSize = 0) => Stringify(new Span<ScoredMove>(list, MoveListSize), position, listSize);
+        public static unsafe string Stringify(Move* list, Position position, int listSize = 0) => Stringify(new Span<Move>(list, MoveListSize), position, listSize);
 
-        public static string Stringify(Span<ScoredMove> list, Position position, int listSize = 0)
+        public static string Stringify(Span<Move> list, Position position, int listSize = 0)
         {
             StringBuilder sb = new StringBuilder();
             int loopMax = (listSize > 0) ? Math.Min(list.Length, listSize) : list.Length;
             for (int i = 0; i < loopMax; i++)
             {
-                if (list[i].Move.Equals(Move.Null))
+                if (list[i].Equals(Move.Null))
                 {
                     break;
                 }
-                string s = list[i].Move.ToString(position);
+                string s = list[i].ToString(position);
                 sb.Append(s + ", ");
             }
 
@@ -598,9 +591,9 @@ namespace AwesomeOpossum.Logic.Util
             Move bestThreadMove = bestThread.Tree.BestRootMove;
             if (bestThreadMove.IsNull())
             {
-                ScoredMove* legal = stackalloc ScoredMove[MoveListSize];
+                Move* legal = stackalloc Move[MoveListSize];
                 int size = info.Position.GenLegal(legal);
-                bestThreadMove = legal[0].Move;
+                bestThreadMove = legal[0];
             }
 
             Console.WriteLine($"bestmove {bestThreadMove.ToString(info.Position.IsChess960)}");
@@ -679,12 +672,6 @@ namespace AwesomeOpossum.Logic.Util
             }
 
             return s;
-        }
-
-        public static float InvSigmoid(float v)
-        {
-            v = float.Clamp(v, 0.0f, 1.0f);
-            return -400.0f * float.Log((1.0f / v) - 1.0f);
         }
 
 
@@ -839,7 +826,22 @@ namespace AwesomeOpossum.Logic.Util
 
         public static int AsInt(this bool v) => v ? 1 : 0;
         public static bool AsBool(this int v) => v != 0;
+
+        public static float Clamp(this float v, float min, float max) => float.Clamp(v, min, max);
+
+        public static float Sigmoid(this float v)
+        {
+            v /= 400.0f;
+            v = 1.0f / (1.0f + float.Exp(-v));
+            return v;
+        }
+
+        public static float InvSigmoid(this float v)
+        {
+            v = float.Log((1.0f / v.Clamp(0.0f, 1.0f)) - 1.0f);
+            v *= -400.0f;
+            return v;
+        }
+
     }
-
-
 }

@@ -5,6 +5,7 @@ using AwesomeOpossum.Logic.Datagen;
 using AwesomeOpossum.Logic.MCTS;
 using AwesomeOpossum.Logic.Evaluation;
 using AwesomeOpossum.Logic.Threads;
+using System.Numerics.Tensors;
 
 namespace AwesomeOpossum
 {
@@ -236,12 +237,12 @@ namespace AwesomeOpossum
 
             Stopwatch sw = Stopwatch.StartNew();
 
-            var list = stackalloc ScoredMove[MoveListSize];
+            var list = stackalloc Move[MoveListSize];
             int size = pos.GenLegal(list);
 
             for (int i = 0; i < size; i++)
             {
-                Move m = list[i].Move;
+                Move m = list[i];
                 pos.MakeMove(m);
                 ulong result = depth > 1 ? pos.Perft(depth - 1) : 1;
                 pos.UnmakeMove(m);
@@ -258,13 +259,13 @@ namespace AwesomeOpossum
             Log($"Static evaluation ({ColorToString(p.ToMove)}'s perspective): {ValueNetwork.Evaluate(p)}");
             Log($"\r\nMove evaluations ({ColorToString(p.ToMove)}'s perspective):");
 
-            ScoredMove* list = stackalloc ScoredMove[MoveListSize];
+            Move* list = stackalloc Move[MoveListSize];
             int size = p.GenLegal(list);
             List<(Move mv, int eval)> scoreList = new();
 
             for (int i = 0; i < size; i++)
             {
-                Move m = list[i].Move;
+                Move m = list[i];
                 p.MakeMove(m);
                 scoreList.Add((m, -ValueNetwork.Evaluate(p)));
                 p.UnmakeMove(m);
@@ -277,29 +278,29 @@ namespace AwesomeOpossum
 
         private static void HandlePolicyCommand()
         {
-            float* rawPolicy = stackalloc float[256];
-            ScoredMove* moves = stackalloc ScoredMove[256];
-            uint count = (uint)p.GenLegal(moves);
-            
+            Span<float> rawPolicy = stackalloc float[256];
+            Span<float> policies = stackalloc float[256];
+            Move* moves = stackalloc Move[256];
+            uint count = p.GenerateAndScoreLegals(moves, ref policies);
+
             List<(Move mv, float policy, float raw)> scoreList = new();
 
-            PolicyNetwork.RefreshPolicyAccumulator(p);
             float maxScore = float.MinValue;
-            for (uint i = 0; i < count; i++)
+            for (int i = 0; i < count; i++)
             {
-                rawPolicy[i] = moves[i].Score = SearchUtils.PolicyForMove(p, moves[i].Move);
-                maxScore = MathF.Max(maxScore, moves[i].Score);
+                rawPolicy[i] = policies[i];
+                maxScore = MathF.Max(maxScore, policies[i]);
             }
 
-            float total = 0.0f;
-            for (uint i = 0; i < count; i++)
+            for (int i = 0; i < count; i++)
             {
-                moves[i].Score = float.Exp(moves[i].Score - maxScore);
-                total += moves[i].Score;
+                policies[i] = float.Exp(policies[i] - maxScore);
             }
 
-            for (uint i = 0; i < count; i++)
-                scoreList.Add((moves[i].Move, (moves[i].Score / total * 100.0f), rawPolicy[i]));
+            float total = TensorPrimitives.Sum(policies);
+
+            for (int i = 0; i < count; i++)
+                scoreList.Add((moves[i], (policies[i] / total * 100.0f), rawPolicy[i]));
 
             var sorted = scoreList.OrderBy(x => x.raw).ToList();
             for (int i = 0; i < sorted.Count; i++)
@@ -308,11 +309,11 @@ namespace AwesomeOpossum
 
         private static void PrintMoves()
         {
-            ScoredMove* pseudo = stackalloc ScoredMove[MoveListSize];
+            Move* pseudo = stackalloc Move[MoveListSize];
             int pseudoCnt = p.GenPseudoLegal(pseudo);
             Log($"Pseudo: [{Stringify(pseudo, p, pseudoCnt)}]");
 
-            ScoredMove* legal = stackalloc ScoredMove[MoveListSize];
+            Move* legal = stackalloc Move[MoveListSize];
             int legalCnt = p.GenLegal(legal);
             Log($"Legal: [{Stringify(legal, p, legalCnt)}]");
         }

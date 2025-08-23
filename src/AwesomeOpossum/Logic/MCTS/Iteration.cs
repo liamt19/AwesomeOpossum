@@ -85,8 +85,8 @@ public static unsafe class Iteration
 
     public static float EvaluateNode(Position pos)
     {
-        float f = ValueNetwork.Evaluate(pos);
-        float wdl = 1.0f / (1.0f + float.Exp(-f / 400.0f));
+        float raw = ValueNetwork.Evaluate(pos);
+        float wdl = raw.Sigmoid();
 
         return wdl;
     }

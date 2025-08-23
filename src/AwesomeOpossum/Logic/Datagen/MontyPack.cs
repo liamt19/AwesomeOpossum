@@ -240,7 +240,7 @@ public unsafe ref struct MontyValuePack
     {
         score = (stm == Black) ? (1.0f - score) : score;
 
-        short score16 = (short)InvSigmoid(score);
+        short score16 = (short)score.InvSigmoid();
 
         moves[NumEntries++] = new MontyScoredMove(move, score16);
     }

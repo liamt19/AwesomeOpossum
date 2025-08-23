@@ -1,5 +1,5 @@
-﻿using AwesomeOpossum.Logic.Evaluation;
-using System;
+﻿
+using System.Numerics.Tensors;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -220,30 +220,24 @@ public unsafe class Tree
     {
         ref Node thisNode = ref this[nodePtr];
 
-        ScoredMove* moves = stackalloc ScoredMove[256];
-        PolicyNetwork.RefreshPolicyAccumulator(pos);
-        (uint count, float maxScore) = pos.GenerateAndScoreLegals(moves);
+        Move* moves = stackalloc Move[256];
+        Span<float> policies = stackalloc float[256];
+
+        uint count = pos.GenerateAndScoreLegals(moves, ref policies);
 
         if (!ReserveNodes(count, out NodePointer newPtr))
             return false;
 
         var pst = SearchUtils.GetTemperatureAdjustment((int)depth, this[nodePtr].QValue);
+        SoftmaxTensor(policies, pst);
+        NormalizeTensor(policies);
 
-        float total = 0.0f;
-        for (uint i = 0; i < count; i++)
+        for (int i = 0; i < count; i++)
         {
-            moves[i].Score = float.Exp((moves[i].Score - maxScore) / pst);
-            total += moves[i].Score;
+            this[newPtr + (uint)i].Set(moves[i], policies[i]);
         }
 
-        float gini = 0.0f;
-        for (uint i = 0; i < count; i++)
-        {
-            var policy = (moves[i].Score / total);
-
-            this[newPtr + i].Set(moves[i].Move, policy);
-            gini += (policy * policy);
-        }
+        var gini = TensorPrimitives.SumOfSquares(policies);
 
         thisNode.NumChildren = (byte)count;
         thisNode.FirstChild = newPtr;

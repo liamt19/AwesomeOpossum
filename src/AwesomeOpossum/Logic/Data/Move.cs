@@ -225,15 +225,6 @@ namespace AwesomeOpossum.Logic.Data
             return (move.GetData() == GetData());
         }
 
-
-
-        [MethodImpl(Inline)]
-        public bool Equals(ScoredMove move)
-        {
-            return move.Move.Equals(this);
-        }
-
-
         public static bool operator ==(Move left, Move right)
         {
             return left.Equals(right);
@@ -244,14 +235,5 @@ namespace AwesomeOpossum.Logic.Data
             return !left.Equals(right);
         }
 
-        public static bool operator ==(Move left, ScoredMove right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(Move left, ScoredMove right)
-        {
-            return !left.Equals(right);
-        }
     }
 }

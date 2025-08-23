@@ -157,11 +157,11 @@ namespace AwesomeOpossum.Logic.Core
         /// <returns>True if <paramref name="moveStr"/> was a recognized and legal move.</returns>
         public bool TryMakeMove(string moveStr)
         {
-            var list = stackalloc ScoredMove[MoveListSize];
+            var list = stackalloc Move[MoveListSize];
             int size = GenLegal(list);
             for (int i = 0; i < size; i++)
             {
-                Move m = list[i].Move;
+                Move m = list[i];
                 if (m.ToString(this).ToLower().Equals(moveStr.ToLower()) || m.ToString(IsChess960).ToLower().Equals(moveStr.ToLower()))
                 {
                     MakeMove(m);
@@ -183,11 +183,11 @@ namespace AwesomeOpossum.Logic.Core
         /// <returns>True if <paramref name="moveStr"/> was a recognized and legal move.</returns>
         public bool TryFindMove(string moveStr, out Move move)
         {
-            var list = stackalloc ScoredMove[MoveListSize];
+            var list = stackalloc Move[MoveListSize];
             int size = GenLegal(list);
             for (int i = 0; i < size; i++)
             {
-                Move m = list[i].Move;
+                Move m = list[i];
 
                 if (m.ToString(this).ToLower().Equals(moveStr.ToLower()) || m.ToString(IsChess960).ToLower().Equals(moveStr.ToLower()))
                 {
@@ -757,7 +757,7 @@ namespace AwesomeOpossum.Logic.Core
         [MethodImpl(Inline)]
         public bool HasLegalMoves()
         {
-            ScoredMove* list = stackalloc ScoredMove[MoveListSize];
+            Move* list = stackalloc Move[MoveListSize];
             int size = GenLegal(list);
             return size != 0;
         }
@@ -860,7 +860,7 @@ namespace AwesomeOpossum.Logic.Core
         [SkipLocalsInit]
         public ulong Perft(int depth)
         {
-            ScoredMove* list = stackalloc ScoredMove[MoveListSize];
+            Move* list = stackalloc Move[MoveListSize];
             int size = GenLegal(list);
 
             if (depth == 1)
@@ -871,7 +871,7 @@ namespace AwesomeOpossum.Logic.Core
             ulong n = 0;
             for (int i = 0; i < size; i++)
             {
-                Move m = list[i].Move;
+                Move m = list[i];
                 MakeMove(m);
                 n += Perft(depth - 1);
                 UnmakeMove(m);
@@ -890,7 +890,7 @@ namespace AwesomeOpossum.Logic.Core
             }
 
             //  This needs to be a pointer since a Span is a ref local and they can't be used inside of lambda functions.
-            ScoredMove* list = stackalloc ScoredMove[MoveListSize];
+            Move* list = stackalloc Move[MoveListSize];
             int size = GenLegal(list);
 
             ulong n = 0;
@@ -903,11 +903,11 @@ namespace AwesomeOpossum.Logic.Core
             {
                 Position threadPosition = new Position(rootFEN, false, owner: GlobalSearchPool.MainThread);
 
-                threadPosition.MakeMove(list[i].Move);
+                threadPosition.MakeMove(list[i]);
                 ulong result = (depth >= PerftParallelMinDepth) ? threadPosition.PerftParallel(depth - 1) : threadPosition.Perft(depth - 1);
                 if (isRoot)
                 {
-                    Log($"{list[i].Move.ToString()}: {result}");
+                    Log($"{list[i].ToString()}: {result}");
                 }
                 n += result;
             });

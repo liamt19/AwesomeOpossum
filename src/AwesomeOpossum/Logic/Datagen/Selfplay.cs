@@ -271,7 +271,7 @@ public static unsafe class Selfplay
         ref Bitboard bb = ref pos.bb;
 
         Random rand = ThreadRNG.Value;
-        ScoredMove* legalMoves = stackalloc ScoredMove[MoveListSize];
+        Move* legalMoves = stackalloc Move[MoveListSize];
 
         Span<Move> candidates = stackalloc Move[MoveListSize];
 
@@ -315,7 +315,7 @@ public static unsafe class Selfplay
                     int randomPt = RandomPieceType();
                     for (int j = 0; j < legals; j++)
                     {
-                        var m = legalMoves[j].Move;
+                        var m = legalMoves[j];
                         if (bb.GetPieceAtIndex(m.From) == randomPt)
                             candidates[ci++] = m;
                     }
@@ -340,7 +340,7 @@ public static unsafe class Selfplay
         td.Reset();
         td.SetStop(false);
 
-        ScoredMove* list = stackalloc ScoredMove[MoveListSize];
+        Move* list = stackalloc Move[MoveListSize];
         int size = pos.GenLegal(list);
 
         return size;

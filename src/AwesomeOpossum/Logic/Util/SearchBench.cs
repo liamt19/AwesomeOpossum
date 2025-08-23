@@ -2,7 +2,7 @@
 {
     public static class SearchBench
     {
-        public const int DefaultDepth = 6;
+        public const int DefaultDepth = 5;
 
         public static void Warmup()
         {
@@ -17,12 +17,13 @@
 
             Stopwatch sw = Stopwatch.StartNew();
 
+            const ulong HardLimit = 3000000;
             ulong totalNodes = 0;
             SearchInformation info = new(pos, depth)
             {
                 OnIterationUpdate = null,
                 OnSearchFinish = null,
-                HardNodeLimit = 3000000,
+                HardNodeLimit = HardLimit,
             };
 
             TimeManager.RemoveSoftLimit();
@@ -39,6 +40,8 @@
                 GlobalSearchPool.MainThread.WaitForThreadFinished();
 
                 ulong thisNodeCount = GlobalSearchPool.GetNodeCount();
+                thisNodeCount = Math.Min(thisNodeCount, HardLimit);
+
                 totalNodes += thisNodeCount;
                 
                 if (normal)
@@ -116,6 +119,21 @@
             "5rk1/1rP3pp/p4n2/3Pp3/1P2Pq2/2Q4P/P5P1/R3R1K1 b - - 0 32",
             "4r1k1/4r1p1/8/p2R1P1K/5P1P/1QP3q1/1P6/3R4 b - - 0 1",
             "3qk1b1/1p4r1/1n4r1/2P1b2B/p3N2p/P2Q3P/8/1R3R1K w - - 2 39",
+            "r1bqk2r/1pp1bpp1/p3pn1p/3p4/1nPP4/2N1PN2/PP2BPPP/R1BQ1RK1 w kq - 4 9",
+            "rnbqkb1r/pp3pp1/2p1pn2/7p/2B1P3/2N5/PPPP2PP/R1BQK1NR w KQkq - 0 7",
+            "rnbqkbnr/pp3ppp/8/2p5/3pN3/3B4/PPP2PPP/R1BQK1NR b KQkq - 1 6",
+            "rn2kbnr/pbpp2pp/1p2qp2/4p3/4P3/2NPBN2/PPP2PPP/R2QKB1R w KQkq - 2 7",
+            "r2k4/8/8/1p6/7P/8/2R1r1PK/8 w - - 0 67",
+            "4rN1k/7p/3p1p2/p7/4B3/R7/5P1K/8 b - - 0 43",
+            "5r1k/6bp/4p3/8/Pp6/8/KPB5/6R1 w - - 0 42",
+            "8/5rk1/1pB1p1p1/p1N4p/P1Pb1P2/1P5P/8/5R1K b - - 0 39",
+            "8/pp4pk/1b3p2/1b6/3B1PPP/1P2r3/P4R1K/8 w - - 0 31",
+            "6k1/5p2/2rb2p1/p6p/2RPn1P1/B3P2P/5P2/5K2 w - - 0 34",
+            "3r3k/6p1/p4p1p/B2N3P/8/5b2/P4P1P/4R1K1 b - - 0 29",
+            "7b/B1pk4/6p1/r5P1/P2p1P2/4p1Pp/1PP1K3/5R2 w - - 0 31",
+            "8/p4Rk1/1p2n2p/8/2P2P2/7P/P1B4K/8 b - - 0 44",
+            "5r2/6k1/2p4p/3p4/4Q1p1/2P5/5PP1/5RK1 b - - 0 36",
+            "7k/3R3p/p7/5p2/P3pP2/7P/1r6/6rK w - - 0 58",
         ];
     }
 }

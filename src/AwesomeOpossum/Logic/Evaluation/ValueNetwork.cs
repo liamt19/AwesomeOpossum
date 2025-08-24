@@ -48,8 +48,8 @@ namespace AwesomeOpossum.Logic.Evaluation
         private const int N_L3W = OUTPUT_BUCKETS * L3_SIZE;
         private const int N_L3B = OUTPUT_BUCKETS;
 
-        private static readonly ValueNetContainer<short, sbyte, float> Net;
-        private static readonly Vector128<ushort>* NNZLookup;
+        private static readonly ValueNetContainer<short, sbyte, float> Net = Initialize(NetworkName);
+        private static readonly Vector128<ushort>* NNZLookup = SetupNNZ();
 
         private static long ExpectedNetworkSize => (N_FTW + N_FTB) * sizeof(short) +
                                                            (N_L1W) * sizeof(byte) +
@@ -76,18 +76,9 @@ namespace AwesomeOpossum.Logic.Evaluation
         ];
 
 
-        static ValueNetwork()
+        public static ValueNetContainer<short, sbyte, float> Initialize(string networkToLoad, bool exitIfFail = true)
         {
-            Net = new();
-
-            NNZLookup = AlignedAllocZeroed<Vector128<ushort>>(256);
-            SetupNNZ();
-
-            Initialize(NetworkName);
-        }
-
-        public static void Initialize(string networkToLoad, bool exitIfFail = true)
-        {
+            ValueNetContainer<short, sbyte, float> Net = new();
             using Stream netStream = NNUE.TryOpenFile(networkToLoad, exitIfFail);
 
             BinaryReader br;
@@ -115,7 +106,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                 }
                 else
                 {
-                    return;
+                    return Net;
                 }
             }
 
@@ -152,8 +143,8 @@ namespace AwesomeOpossum.Logic.Evaluation
             fixed (float* tl2 = tempL2) 
                 Unsafe.CopyBlock(tl2, Net.L2Weights[0], N_L2W * sizeof(float));
 
-            PermuteFT();
-            PermuteL1(tempL1);
+            PermuteFT(Net);
+            PermuteL1(Net, tempL1);
 
             for (int bucket = 0; bucket < OUTPUT_BUCKETS; bucket++)
             {
@@ -169,9 +160,10 @@ namespace AwesomeOpossum.Logic.Evaluation
                         Net.L2Weights[bucket][i * L3_SIZE + j] = tempL2[bucket, j, i];
             }
 
-            PermuteDpbusd();
+            PermuteDpbusd(Net);
 
             br.Dispose();
+            return Net;
         }
 
 
@@ -406,8 +398,9 @@ namespace AwesomeOpossum.Logic.Evaluation
 
 
 
-        private static void SetupNNZ()
+        private static Vector128<ushort>* SetupNNZ()
         {
+            Vector128<ushort>* NNZLookup = AlignedAllocZeroed<Vector128<ushort>>(256);
             ushort[] temp = new ushort[8];
             for (int i = 0; i < 256; i++)
             {
@@ -424,11 +417,13 @@ namespace AwesomeOpossum.Logic.Evaluation
 
                 NNZLookup[i] = Vector128.Create(temp);
             }
+
+            return NNZLookup;
         }
 
 
 
-        private static void PermuteDpbusd()
+        private static void PermuteDpbusd(ValueNetContainer<short, sbyte, float> Net)
         {
             const int numRegi = 4;
             const int numChunks = 16 / sizeof(short);
@@ -452,8 +447,14 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
-        private static void PermuteFT()
+        private static void PermuteFT(ValueNetContainer<short, sbyte, float> Net)
         {
+#if PERMUTE_DISABLED
+        int[] PermuteIndices = [.. Enumerable.Range(0, L1_PAIRS)];
+#else
+        int[] PermuteIndices = BestIndices.ToArray();
+#endif
+
             Span<short> ftWeights = new(Net.FTWeights, N_FTW);
             Span<short> ftBiases = new(Net.FTBiases, N_FTB);
 
@@ -490,8 +491,14 @@ namespace AwesomeOpossum.Logic.Evaluation
         }
 
 
-        private static void PermuteL1(sbyte[,,] l1Weights)
+        private static void PermuteL1(ValueNetContainer<short, sbyte, float> Net, sbyte[,,] l1Weights)
         {
+#if PERMUTE_DISABLED
+            int[] PermuteIndices = [.. Enumerable.Range(0, L1_PAIRS)];
+#else
+            int[] PermuteIndices = BestIndices.ToArray();
+#endif
+
             sbyte[,,] temp = new sbyte[OUTPUT_BUCKETS, L2_SIZE, L1_PAIRS];
 
             Array.Copy(l1Weights, temp, N_L1W);
@@ -540,12 +547,6 @@ namespace AwesomeOpossum.Logic.Evaluation
                 });
 #endif
         }
-
-#if PERMUTE_DISABLED
-        private static readonly int[] PermuteIndices = [.. Enumerable.Range(0, L1_PAIRS)];
-#else
-        private static readonly int[] PermuteIndices = BestIndices.ToArray();
-#endif
 
         private static ReadOnlySpan<int> BestIndices =>
         [

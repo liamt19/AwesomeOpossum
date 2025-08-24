@@ -45,18 +45,13 @@ namespace AwesomeOpossum.Logic.Evaluation
         public const int N_L1W = L1_PAIRS * OUTPUT_BUCKETS * OUTPUT_SIZE;
         public const int N_L1B = OUTPUT_BUCKETS * OUTPUT_SIZE;
 
-        private static readonly PolicyNetContainer<short, short> Net;
+        private static readonly PolicyNetContainer<short, short> Net = InitializeNet(NetworkName);
         private static long ExpectedNetworkSize => (N_FTW + N_FTB + N_L1W + N_L1B) * sizeof(short);
 
-        static PolicyNetwork()
-        {
-            Net = new();
 
-            Initialize(NetworkName);
-        }
-
-        public static void Initialize(string networkToLoad, bool exitIfFail = true)
+        public static PolicyNetContainer<short, short> InitializeNet(string networkToLoad, bool exitIfFail = true)
         {
+            PolicyNetContainer<short, short> Net = new();
             using Stream netStream = NNUE.TryOpenFile(networkToLoad, exitIfFail);
 
             BinaryReader br;
@@ -84,7 +79,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                 }
                 else
                 {
-                    return;
+                    return Net;
                 }
             }
 
@@ -101,6 +96,7 @@ namespace AwesomeOpossum.Logic.Evaluation
                 Net.L1Biases[i] = br.ReadInt16();
 
             br.Dispose();
+            return Net;
         }
 
 

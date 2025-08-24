@@ -39,14 +39,14 @@ public static unsafe class SearchUtils
         return expl;
     }
 
-    public static float GetTemperatureAdjustment(int depth, float q)
+    public static float GetTemperatureAdjustment(int depth, ulong iter, float q)
     {
         var winningAdj = PSTQScale * ((q - Math.Min(q, PSTQInc)) / (1.0f - PSTQInc));
 
         var depthAdj = (PSTNumer / MathF.Pow(depth, PSTPow)) - PSTOffset;
 
         //  sin(x * pi / 2) / ...
-        var sinAdj = ((2 - (depth % 4)) * (depth % 2)) / PSTSinDiv;
+        var sinAdj = ((2 - (iter % 4)) * (iter % 2)) / PSTSinDiv;
 
         return 1.0f + winningAdj + depthAdj + sinAdj;
     }

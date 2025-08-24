@@ -227,7 +227,7 @@ public unsafe class Tree
         if (!ReserveNodes(count, out NodePointer newPtr))
             return false;
 
-        var pst = SearchUtils.GetTemperatureAdjustment((int)depth, this[nodePtr].QValue);
+        var pst = SearchUtils.GetTemperatureAdjustment((int)depth, pos.Owner.PlayoutIteration, this[nodePtr].QValue);
 
         float total = 0.0f;
         for (uint i = 0; i < count; i++)

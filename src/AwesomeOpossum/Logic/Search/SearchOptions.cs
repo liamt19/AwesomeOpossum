@@ -35,5 +35,9 @@
         public static float EffortMul = 0.500000f;
         public static float EffortBase = 1.000000f;
 
+        public static float EvalDeltaMul = 0.065000f;
+        public static float EvalDeltaMin = 0.750000f;
+        public static float EvalDeltaMax = 1.500000f;
+
     }
 }

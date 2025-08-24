@@ -263,7 +263,7 @@ namespace AwesomeOpossum.Logic.Threads
 
             NodePointer bestChildPtr = default;
             Move bestMove = Move.Null, lastBestMove = Move.Null;
-            float bestScore = 0;
+            float bestScore = 0, previousScore = 0;
             uint bmChanges = 0;
 
             var softTimeLimit = TimeManager.SoftTimeLimit;
@@ -292,11 +292,17 @@ namespace AwesomeOpossum.Logic.Threads
 #if !DATAGEN
                 if (PlayoutIteration % 128 == 0)
                 {
-                    (bestChildPtr, bestMove, bestScore) = Tree.GetBestAction(Tree.RootNodePointer);
+                    (bestChildPtr, bestMove, float bs) = Tree.GetBestAction(Tree.RootNodePointer);
                     if (bestMove != lastBestMove)
                     {
                         bmChanges++;
                         lastBestMove = bestMove;
+                    }
+
+                    if (PlayoutIteration % 4096 == 0)
+                    {
+                        previousScore = bestScore;
+                        bestScore = bs;
                     }
                 }
 
@@ -336,7 +342,10 @@ namespace AwesomeOpossum.Logic.Threads
                         var visits = -(Tree[bestChildPtr].Visits / (double)PlayoutIteration);
                         var effort = Math.Log((visits + EffortOffset) * EffortMul) + EffortBase;
 
-                        var limit = softTimeLimit * bmStability * effort;
+                        var evalDiff = InvSigmoid(bestScore) - InvSigmoid(previousScore);
+                        var evalDelta = float.Clamp(1.0f + evalDiff * EvalDeltaMul, EvalDeltaMin, EvalDeltaMax);
+
+                        var limit = softTimeLimit * bmStability * effort * evalDelta;
                         if (TimeManager.GetSearchTime() >= limit)
                             SetStop();
                     }

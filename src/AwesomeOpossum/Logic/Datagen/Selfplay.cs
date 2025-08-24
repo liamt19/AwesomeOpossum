@@ -297,7 +297,7 @@ public static unsafe class Selfplay
             else if (DFRC)
                 pos.SetupForDFRC(rand.Next(0, 960), rand.Next(0, 960));
             else
-                pos.LoadFromFEN(InitialFEN);
+                pos.LoadFromFEN(StartposFEN);
 
             int randMoveCount = rand.Next(RandomPlies, RandomPlies + 1);
             for (int i = 0; i < randMoveCount; i++)

@@ -1,29 +1,30 @@
 ﻿
 using ZstdSharp;
 
-namespace AwesomeOpossum.Logic.Util
+namespace AwesomeOpossum.Logic.Util;
+
+#pragma warning disable CA2000 // "Dispose objects before losing scope" This is done in Value/PolicyNetwork after consuming the stream
+
+public static class Zstd
 {
-    public static class Zstd
+    private const int ZSTD_HEADER = -47205080;
+
+    public static bool IsCompressed(Stream stream)
     {
-        private const int ZSTD_HEADER = -47205080;
+        BinaryReader br = new BinaryReader(stream);
+        int headerMaybe = br.ReadInt32();
+        br.BaseStream.Seek(0, SeekOrigin.Begin);
 
-        public static bool IsCompressed(Stream stream)
-        {
-            BinaryReader br = new BinaryReader(stream);
-            int headerMaybe = br.ReadInt32();
-            br.BaseStream.Seek(0, SeekOrigin.Begin);
+        return (headerMaybe == ZSTD_HEADER);
+    }
 
-            return (headerMaybe == ZSTD_HEADER);
-        }
+    public static MemoryStream Decompress(Stream stream, byte[] buff)
+    {
+        var zstStream = new DecompressionStream(stream);
+        MemoryStream memStream = new MemoryStream(buff);
+        zstStream.CopyTo(memStream);
+        memStream.Seek(0, SeekOrigin.Begin);
 
-        public static MemoryStream Decompress(Stream stream, byte[] buff)
-        {
-            var zstStream = new DecompressionStream(stream);
-            MemoryStream memStream = new MemoryStream(buff);
-            zstStream.CopyTo(memStream);
-            memStream.Seek(0, SeekOrigin.Begin);
-
-            return memStream;
-        }
+        return memStream;
     }
 }

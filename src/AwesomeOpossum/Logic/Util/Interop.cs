@@ -150,7 +150,7 @@ namespace AwesomeOpossum.Logic.Util
         /// and <see cref="NativeMemory.AllocZeroed"/>, to ensure that the memory in that block is set to 0 before it is used,
         /// but doesn't have a method to do these both.
         /// </summary>
-        public static unsafe void* AlignedAllocZeroed(nuint byteCount, nuint alignment = AllocAlignment)
+        public static unsafe void* AlignedAllocZeroed(nuint byteCount, nuint alignment = 64)
         {
             void* block = NativeMemory.AlignedAlloc(byteCount, alignment);
             NativeMemory.Clear(block, byteCount);
@@ -161,7 +161,7 @@ namespace AwesomeOpossum.Logic.Util
         /// <summary>
         /// <inheritdoc cref="AlignedAllocZeroed(nuint, nuint)"/>
         /// </summary>
-        public static unsafe T* AlignedAllocZeroed<T>(nuint items, nuint alignment = AllocAlignment)
+        public static unsafe T* AlignedAllocZeroed<T>(nuint items, nuint alignment = 64)
         {
             nuint bytes = ((nuint)sizeof(T) * (nuint)items);
             void* block = NativeMemory.AlignedAlloc(bytes, alignment);

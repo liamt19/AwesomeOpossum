@@ -18,27 +18,12 @@ namespace AwesomeOpossum.Logic.Util
     {
         public const string EngineBuildVersion = "0.1.0";
 
-        public const int NormalListCapacity = 128;
         public const int MoveListSize = 256;
 
         public const int MaxDepth = 64;
         public const int MaxPly = 256;
-
-        /// <summary>
-        /// The maximum ply that SimpleSearch's SearchStackEntry* array can be indexed at.
-        /// <br></br>
-        /// The array actually contains MaxPly == 256 entries, but the first 10 of them are off limits to
-        /// prevent accidentally indexing memory before the stack.
-        /// </summary>
-        public const int MaxSearchStackPly = 256 - 10;
-
-        public const nuint AllocAlignment = 64;
-
-        public const int AlphaStart = -ScoreMate;
-        public const int BetaStart = ScoreMate;
         public const int MaxSearchTime = int.MaxValue - 1;
         public const ulong MaxSearchNodes = ulong.MaxValue - 1;
-
 
         public const ulong FileABB = 0x0101010101010101UL;
         public const ulong FileHBB = 0x8080808080808080UL;
@@ -52,17 +37,12 @@ namespace AwesomeOpossum.Logic.Util
         public const ulong Rank7BB = 0x00FF000000000000UL;
         public const ulong Rank8BB = 0xFF00000000000000UL;
 
+        public const string StartposFEN = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-        public const string InitialFEN = @"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining;
+        public const MethodImplOptions NoInline = MethodImplOptions.NoInlining;
 
 
-        public static int ProcessID => Environment.ProcessId;
-
-        public const bool NO_LOG_FILE = true;
-
-        /// <summary>
-        /// Writes the string <paramref name="s"/> to the debugger, and to the log file if in UCI mode or to the console otherwise.
-        /// </summary>
         public static void Log(string s)
         {
             if (!UCIClient.Active)
@@ -76,11 +56,6 @@ namespace AwesomeOpossum.Logic.Util
 
         public static void ForceGC()
         {
-            //  This is only being used to keep memory usage as low as possible when running multiple instances concurrently,
-            //  and this won't be an issue if there are multiple threads.
-            if (SearchOptions.Threads > 3)
-                return;
-
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true, true);
             GC.WaitForPendingFinalizers();
         }
@@ -97,18 +72,13 @@ namespace AwesomeOpossum.Logic.Util
             sb.Append("Debug ");
 #endif
 
-
-            sb.Append(HasSkipInit ? "SkipInit " : string.Empty);
-
             sb.Append(Avx2.IsSupported ? "Avx2 " : string.Empty);
-
-            sb.Append(AdvSimd.IsSupported ? "AdvSimd/ARM " : string.Empty);
 #if AVX512
             sb.Append(Avx512BW.IsSupported ? "Avx512=(supported, used) " : "Avx512=(unsupported, used!) ");
 #else
             sb.Append(Avx512BW.IsSupported ? "Avx512=(supported, unused!) " : "Avx512=(unsupported, unused) ");
 #endif
-
+            sb.Append(AdvSimd.IsSupported ? "AdvSimd/ARM " : string.Empty);
             sb.Append(Bmi2.IsSupported ? "Bmi2 " : string.Empty);
             sb.Append(Sse3.IsSupported ? "Sse3 " : string.Empty);
             sb.Append(Sse.IsSupported ? "Prefetch " : string.Empty);
@@ -592,7 +562,7 @@ namespace AwesomeOpossum.Logic.Util
             if (bestThreadMove.IsNull())
             {
                 Move* legal = stackalloc Move[MoveListSize];
-                int size = info.Position.GenLegal(legal);
+                info.Position.GenLegal(legal);
                 bestThreadMove = legal[0];
             }
 
@@ -676,46 +646,6 @@ namespace AwesomeOpossum.Logic.Util
 
 
 
-        public static void StableSort(List<RootMove> items, Tree tree)
-        {
-            if (tree.RootNode.NumChildren != 0)
-            {
-                var nodes = tree.ChildrenOf(tree.RootNode);
-                Debug.Assert(nodes.Length == items.Count);
-
-                for (int i = 0; i < items.Count; i++)
-                {
-                    for (int j = 0; j < nodes.Length; j++)
-                    {
-                        if (items[i].Move == nodes[j].Move)
-                        {
-                            items[i].Score = nodes[j].PolicyValue;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            for (int i = 0; i < items.Count; i++)
-            {
-                int best = i;
-
-                for (int j = i + 1; j < items.Count; j++)
-                {
-                    if (items[j].CompareTo(items[best]) > 0)
-                    {
-                        best = j;
-                    }
-                }
-
-                if (best != i)
-                {
-                    (items[i], items[best]) = (items[best], items[i]);
-                }
-            }
-        }
-
-
         public static void ParsePositionCommand(string[] input, Position pos, ThreadSetup setup)
         {
             //  Skip the "position fen" part, and slice until hitting the end of the input or "moves ..."
@@ -724,7 +654,7 @@ namespace AwesomeOpossum.Logic.Util
             string fen = string.Join(" ", input.TakeWhile(x => x != "moves"));
 
             if (fen is "startpos")
-                fen = InitialFEN;
+                fen = StartposFEN;
 
             setup.StartFEN = fen;
             pos.LoadFromFEN(setup.StartFEN);

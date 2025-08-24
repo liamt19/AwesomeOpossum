@@ -106,7 +106,7 @@ namespace AwesomeOpossum.Logic.Threads
             int size = rootPosition.GenLegal(moves);
 
             var rootFEN = setup.StartFEN;
-            if (rootFEN == InitialFEN && setup.SetupMoves.Count == 0)
+            if (rootFEN == StartposFEN && setup.SetupMoves.Count == 0)
             {
                 rootFEN = rootPosition.GetFEN();
             }

@@ -13,7 +13,6 @@ namespace AwesomeOpossum
     public static unsafe class Program
     {
         private static Position p;
-        private static SearchInformation info;
 
         public static void Main(string[] args)
         {
@@ -37,7 +36,6 @@ namespace AwesomeOpossum
             }
 
             p = new Position(owner: GlobalSearchPool.MainThread);
-            info = new SearchInformation(p);
 
             DoInputLoop();
         }
@@ -101,7 +99,7 @@ namespace AwesomeOpossum
                 }
                 else if (input.EqualsIgnoreCase("ucinewgame"))
                 {
-                    p = new Position(InitialFEN, owner: GlobalSearchPool.MainThread);
+                    p = new Position(StartposFEN, owner: GlobalSearchPool.MainThread);
                     p.Owner.AssocPool.Clear();
                 }
                 else if (input.EqualsIgnoreCase("listmoves"))
@@ -209,7 +207,7 @@ namespace AwesomeOpossum
                 else
                 {
                     //  You can just copy paste in a FEN string rather than typing "position fen" before it.
-                    if (input.Where(x => x == '/').Count() == 7)
+                    if (input.Count(x => x == '/') == 7)
                     {
                         if (p.LoadFromFEN(input.Trim()))
                         {
@@ -413,7 +411,7 @@ namespace AwesomeOpossum
 
             p.Owner.AssocPool.Clear();
 
-            info = new SearchInformation(p, MaxDepth);
+            SearchInformation info = new(p, MaxDepth);
             TimeManager.Reset();
 
             UCIClient.ParseGo(param, ref info, setup);

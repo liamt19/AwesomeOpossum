@@ -56,7 +56,7 @@
                 return false;
             }
 
-            Position pos = new Position(InitialFEN, false);
+            Position pos = new Position(StartposFEN, false);
 
             bool nodesCorrect = true;
             ulong total = 0;

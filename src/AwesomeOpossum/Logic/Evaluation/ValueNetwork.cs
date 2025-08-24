@@ -170,6 +170,8 @@ namespace AwesomeOpossum.Logic.Evaluation
             }
 
             PermuteDpbusd();
+
+            br.Dispose();
         }
 
 
@@ -502,7 +504,6 @@ namespace AwesomeOpossum.Logic.Evaluation
                     for (int l2 = 0; l2 < L2_SIZE; l2++)
                     {
                         l1Weights[b, l2, dst] = temp[b, l2, src];
-                        //l1Weights[b, l2, dst + (L1_PAIRS / 2)] = temp[b, l2, src + (L1_PAIRS / 2)];
                     }
                 }
             }

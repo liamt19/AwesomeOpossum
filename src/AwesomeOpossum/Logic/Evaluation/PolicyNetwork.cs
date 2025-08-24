@@ -99,6 +99,8 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             for (int i = 0; i < N_L1B; i++)
                 Net.L1Biases[i] = br.ReadInt16();
+
+            br.Dispose();
         }
 
 
@@ -193,11 +195,11 @@ namespace AwesomeOpossum.Logic.Evaluation
 
             var data = pos.PolicyAccumulation;
             var l1Weights = &Net.L1Weights[moveIndex * L1_PAIRS];
-            var l1Biases = &Net.L1Biases[moveIndex];
+            var l1Bias = Net.L1Biases[moveIndex];
 
             int output = SIMDBindings.PolicyEvaluateFn(data, l1Weights);
 
-            var rv = (((float)output / QA) + Net.L1Biases[moveIndex]) / (QA * QB);
+            var rv = (((float)output / QA) + l1Bias) / (QA * QB);
             return rv;
         }
 

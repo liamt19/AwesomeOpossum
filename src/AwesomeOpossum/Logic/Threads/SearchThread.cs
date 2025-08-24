@@ -37,10 +37,10 @@ namespace AwesomeOpossum.Logic.Threads
         public SearchThreadPool AssocPool;
         public Tree Tree;
 
-        private Thread _SysThread;
+        private readonly Thread _SysThread;
         private readonly object _Mutex;
         private readonly ConditionVariable _SearchCond;
-        private Barrier _InitBarrier = new Barrier(2);
+        private readonly Barrier _InitBarrier = new Barrier(2);
 
         public string FriendlyName => _SysThread.Name;
         public void SetStop(bool flag = true) => StopSearching = flag;
@@ -59,7 +59,7 @@ namespace AwesomeOpossum.Logic.Threads
             Searching = true;
 
             //  Each thread its own position object, which lasts the entire lifetime of the thread.
-            RootPosition = new Position(InitialFEN, true, this);
+            RootPosition = new Position(StartposFEN, true, this);
 
             _SysThread = new Thread(ThreadInit);
 

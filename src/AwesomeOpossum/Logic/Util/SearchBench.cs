@@ -13,7 +13,7 @@
         public static void Go(int depth = DefaultDepth, bool openBench = false, bool silent = false)
         {
             bool normal = !openBench && !silent;
-            Position pos = new(InitialFEN, owner: GlobalSearchPool.MainThread);
+            Position pos = new(StartposFEN, owner: GlobalSearchPool.MainThread);
 
             Stopwatch sw = Stopwatch.StartNew();
 

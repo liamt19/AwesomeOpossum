@@ -53,20 +53,6 @@
         Exact = Beta | Alpha
     };
 
-    public static class Bound
-    {
-        public const int BoundNone = (int)TTNodeType.Invalid;
-        public const int BoundUpper = (int)TTNodeType.Beta;
-        public const int BoundLower = (int)TTNodeType.Alpha;
-        public const int BoundExact = (int)TTNodeType.Exact;
-    }
-
-    public interface SearchNodeType { }
-    public struct PVNode : SearchNodeType { }
-    public struct NonPVNode : SearchNodeType { }
-    public struct RootNode : SearchNodeType { }
-
-
     public interface MoveGenerationType { }
     public struct GenNoisy : MoveGenerationType { }
     public struct GenEvasions : MoveGenerationType { }

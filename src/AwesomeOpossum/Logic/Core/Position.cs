@@ -110,7 +110,7 @@ namespace AwesomeOpossum.Logic.Core
         /// <br></br>
         /// If <paramref name="owner"/> is <see langword="null"/> then <paramref name="createAccumulators"/> should be false.
         /// </summary>
-        public Position(string fen = InitialFEN, bool createAccumulators = true, SearchThread owner = null)
+        public Position(string fen = StartposFEN, bool createAccumulators = true, SearchThread owner = null)
         {
             CastlingRookSquares = new int[(int)CastlingStatus.All];
             CastlingRookPaths = new ulong[(int)CastlingStatus.All];

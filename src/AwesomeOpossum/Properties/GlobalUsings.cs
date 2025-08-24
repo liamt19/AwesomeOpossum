@@ -7,11 +7,9 @@ global using AwesomeOpossum.Logic.Transposition;
 global using AwesomeOpossum.Logic.UCI;
 global using AwesomeOpossum.Logic.Util;
 
-global using static AwesomeOpossum.Logic.Data.Bound;
 global using static AwesomeOpossum.Logic.Data.Color;
 global using static AwesomeOpossum.Logic.Data.Piece;
 global using static AwesomeOpossum.Logic.Data.PrecomputedData;
-global using static AwesomeOpossum.Logic.Data.RunOptions;
 global using static AwesomeOpossum.Logic.Data.Squares;
 global using static AwesomeOpossum.Logic.Magic.MagicBitboards;
 global using static AwesomeOpossum.Logic.Search.EvaluationConstants;

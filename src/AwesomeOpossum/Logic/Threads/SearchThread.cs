@@ -334,7 +334,7 @@ namespace AwesomeOpossum.Logic.Threads
                         bmChanges = 0;
 
                         var visits = -(Tree[bestChildPtr].Visits / (double)PlayoutIteration);
-                        var effort = Math.Log((visits + 2.5) * 0.5) + 1;
+                        var effort = Math.Log((visits + EffortOffset) * EffortMul) + EffortBase;
 
                         var limit = softTimeLimit * bmStability * effort;
                         if (TimeManager.GetSearchTime() >= limit)

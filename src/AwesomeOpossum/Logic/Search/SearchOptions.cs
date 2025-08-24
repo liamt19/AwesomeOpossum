@@ -30,5 +30,10 @@
 
         public static float StabilityBase = 0.976387f;
         public static float StabilityMul = 0.143435f;
+
+        public static float EffortOffset = 2.500000f;
+        public static float EffortMul = 0.500000f;
+        public static float EffortBase = 1.000000f;
+
     }
 }
